@@ -1,11 +1,13 @@
 // components/VariableView/index.tsx
 // View for the variables.
 
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import commonStyles from '../../styles/common.module.css';
 import type { Variable } from '../../types';
 
 const emptyVariable: Variable = { name: '', value: '' };
+
+type SortOrder = null | 'asc' | 'desc';
 
 export default function VariableView({
   variables,
@@ -21,6 +23,8 @@ export default function VariableView({
   );
   const [editBuffer, setEditBuffer] = useState<Variable | null>(null);
   const [localVariables, setLocalVariables] = useState<Variable[]>(variables);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(null);
+  const preSortOrderRef = useRef<Variable[] | null>(null);
 
   // Helper function to save variables
   const saveVariables = useCallback((updated: Variable[]) => {
@@ -41,26 +45,52 @@ export default function VariableView({
     }
   }, [selectedIdx, localVariables]);
 
+  const clearSortState = () => {
+    setSortOrder(null);
+    preSortOrderRef.current = null;
+  };
+
+  const reorderVariables = (reordered: Variable[]) => {
+    saveVariables(reordered);
+    if (selectedIdx !== null) {
+      const selectedVar = localVariables[selectedIdx];
+      const newIndex = reordered.findIndex(v => v.name === selectedVar.name);
+      setSelectedIdx(newIndex >= 0 ? newIndex : null);
+    }
+  };
+
+  const handleSort = () => {
+    if (sortOrder === null) {
+      preSortOrderRef.current = [...localVariables];
+      const sorted = [...localVariables].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+      setSortOrder('asc');
+      reorderVariables(sorted);
+      return;
+    }
+
+    if (sortOrder === 'asc') {
+      const sorted = [...localVariables].sort((a, b) =>
+        b.name.localeCompare(a.name)
+      );
+      setSortOrder('desc');
+      reorderVariables(sorted);
+      return;
+    }
+
+    const restored = preSortOrderRef.current ?? localVariables;
+    clearSortState();
+    reorderVariables(restored);
+  };
+
   // Add new variable and select it
   const handleAdd = () => {
+    clearSortState();
     const newVariables = [{ ...emptyVariable }, ...localVariables];
     setLocalVariables(newVariables);
     setEditBuffer({ ...emptyVariable });
     setSelectedIdx(0);
-  };
-
-  // Sort variables alphabetically by name
-  const handleSort = () => {
-    const sorted = [...localVariables].sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
-    saveVariables(sorted);
-    // Maintain selection if possible
-    if (selectedIdx !== null) {
-      const selectedVar = localVariables[selectedIdx];
-      const newIndex = sorted.findIndex(v => v.name === selectedVar.name);
-      setSelectedIdx(newIndex);
-    }
   };
 
   // Update edit buffer inline
@@ -124,6 +154,7 @@ export default function VariableView({
     const sourceIdx = parseInt(e.dataTransfer.getData('text/plain'));
     if (sourceIdx === targetIdx) return;
 
+    clearSortState();
     const updated = [...localVariables];
     const [movedItem] = updated.splice(sourceIdx, 1);
     updated.splice(targetIdx, 0, movedItem);
@@ -154,9 +185,16 @@ export default function VariableView({
           <button
             type='button'
             onClick={handleSort}
-            aria-label='Sort variables alphabetically'
+            aria-pressed={sortOrder !== null}
+            aria-label={
+              sortOrder === null
+                ? 'Sort variables A to Z'
+                : sortOrder === 'asc'
+                  ? 'Sort variables Z to A'
+                  : 'Clear sort and restore original order'
+            }
           >
-            ⇅
+            {sortOrder === 'asc' ? '↑' : sortOrder === 'desc' ? '↓' : '⇅'}
           </button>
         </div>
         <ul role='list' aria-label='Variables'>
