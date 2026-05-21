@@ -15,7 +15,14 @@ import { useAppContext } from './contexts/AppContext';
 import { stripHtmlTags } from './utils/TextUtils';
 import { ON_SCREEN_CMD_LIMIT } from './constants';
 import { ClientCommandManager } from './utils/ClientCommands';
-// let messageCounter = 0;
+
+const OUTPUT_CHAR_LIMIT = ON_SCREEN_CMD_LIMIT * 2000;
+
+function trimOutput(html: string): string {
+  return html.length > OUTPUT_CHAR_LIMIT
+    ? html.slice(-OUTPUT_CHAR_LIMIT)
+    : html;
+}
 
 function App() {
   const outputRef = useRef<HTMLDivElement>(null);
@@ -35,7 +42,7 @@ function App() {
   const [wsManager, setWsManager] = useState<WebSocketManager | null>(null);
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [messages, setMessages] = useState<string[]>([]);
+  const [outputHtml, setOutputHtml] = useState('');
   const [isLockedToBottom, setIsLockedToBottom] = useState(true);
   const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
   const [triggersEnabled, setTriggersEnabled] = useState(true);
@@ -140,15 +147,11 @@ function App() {
         {
           onCommandSend: (command: string, settings: Settings) => {
             if (settings.showCommandInOutput) {
-              setMessages(prev => {
-                const next = [
-                  ...prev,
-                  `<div class="user-cmd">&gt; ${command}</div>`,
-                ];
-                return next.length > ON_SCREEN_CMD_LIMIT
-                  ? next.slice(-ON_SCREEN_CMD_LIMIT)
-                  : next;
-              });
+              setOutputHtml(prev =>
+                trimOutput(
+                  prev + `<div class="user-cmd">&gt; ${command}</div>`
+                )
+              );
             }
 
             // Send the command to the MUD server
@@ -208,9 +211,7 @@ function App() {
 
   // Process incoming line with triggers
   useEffect(() => {
-    // console.debug(`${messageCounter} - Line: ${line}`);
     if (line && commandEngine && triggersEnabled) {
-      // console.debug(`Line: ${line}`);
       commandEngine.processPattern(line, 'trigger');
     }
   }, [line, triggersEnabled]);
@@ -231,15 +232,9 @@ function App() {
       },
       onError: () => setStatus('Error occurred'),
       onMessage: (data: string) => {
-        setMessages(prev => {
-          const next = [...prev, data];
-          return next.length > ON_SCREEN_CMD_LIMIT
-            ? next.slice(-ON_SCREEN_CMD_LIMIT)
-            : next;
-        });
+        setOutputHtml(prev => trimOutput(prev + data));
 
         const msgData = stripHtmlTags(data);
-        // messageCounter = messageCounter + 1;
         setLine(msgData);
       },
       onConnected: () => setCanSend(true),
@@ -275,12 +270,12 @@ function App() {
     if (isLockedToBottom && outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
-  }, [messages, isLockedToBottom]);
+  }, [outputHtml, isLockedToBottom]);
 
   // Initialize client commands
   useEffect(() => {
     clientCommands.current.setClearScreenHandler(() => {
-      setMessages([]);
+      setOutputHtml('');
     });
   }, []);
 
@@ -381,9 +376,7 @@ function App() {
           aria-live='polite'
           tabIndex={0}
         >
-          {messages.map((msg, idx) => (
-            <div key={idx} dangerouslySetInnerHTML={{ __html: msg }} />
-          ))}
+          <div dangerouslySetInnerHTML={{ __html: outputHtml }} />
         </div>
         <div className={styles.inputContainer}>
           <input
