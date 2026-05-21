@@ -134,7 +134,8 @@ const AliasView: React.FC<AliasViewProps> = ({
         <button type='button' onClick={handleAdd} aria-label='Add alias'>
           +
         </button>
-        <ul role='list' aria-label='Aliases'>
+        <div className={commonStyles.sidebarList}>
+          <ul role='list' aria-label='Aliases'>
           {aliases.map((alias, index) => (
             <li
               key={index}
@@ -174,6 +175,7 @@ const AliasView: React.FC<AliasViewProps> = ({
             </li>
           ))}
         </ul>
+        </div>
       </div>
       {selected && (
         <div className={commonStyles.detailsPanel}>

@@ -140,7 +140,8 @@ const ScriptView: React.FC<ScriptViewProps> = ({
         <button type='button' onClick={handleAdd} aria-label='Add script'>
           +
         </button>
-        <ul role='list' aria-label='Scripts'>
+        <div className={commonStyles.sidebarList}>
+          <ul role='list' aria-label='Scripts'>
           {localScripts.map((script, index) => (
             <li
               key={index}
@@ -180,6 +181,7 @@ const ScriptView: React.FC<ScriptViewProps> = ({
             </li>
           ))}
         </ul>
+        </div>
       </div>
       {selected && (
         <div className={commonStyles.detailsPanel}>

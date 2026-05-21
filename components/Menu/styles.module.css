@@ -122,10 +122,12 @@
 
 .popupContent {
   flex: 1;
+  min-height: 0;
   padding: 20px;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   color: #00ff00;
-  min-height: 200px;
 }
 
 .popupOverlay {
@@ -149,7 +151,6 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-width: 800px;
-  min-height: 800px;
-  width: 50%;
+  width: 1200px;
+  height: 800px;
 } 

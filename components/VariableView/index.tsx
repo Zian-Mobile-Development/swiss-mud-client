@@ -197,7 +197,8 @@ export default function VariableView({
             {sortOrder === 'asc' ? '↑' : sortOrder === 'desc' ? '↓' : '⇅'}
           </button>
         </div>
-        <ul role='list' aria-label='Variables'>
+        <div className={commonStyles.sidebarList}>
+          <ul role='list' aria-label='Variables'>
           {localVariables.map((variable, index) => (
             <li
               key={index}
@@ -224,6 +225,7 @@ export default function VariableView({
             </li>
           ))}
         </ul>
+        </div>
       </div>
       {selected && (
         <div className={commonStyles.detailsPanel}>

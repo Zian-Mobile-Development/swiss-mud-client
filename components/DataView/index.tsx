@@ -89,24 +89,28 @@ const DataView: React.FC<DataViewProps> = ({
 
   return (
     <div className={styles.dataView}>
-      <div className={styles.dataSection}>
-        <h3>Profile Data</h3>
-        <div className={commonStyles.actions}>
-          <button
-            type='button'
-            onClick={handleClearProfileData}
-            disabled={!canClearProfileData}
-          >
-            Clear Current Profile Data
-          </button>
+      <div className={styles.dataRow}>
+        <div className={styles.dataSection}>
+          <h3>Profile Data</h3>
+          <div className={commonStyles.actions}>
+            <button
+              type='button'
+              onClick={handleClearProfileData}
+              disabled={!canClearProfileData}
+            >
+              Clear Current Profile Data
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className={styles.dataSection}>
-        <h3>Export Data</h3>
-        <div className={commonStyles.actions}>
-          <button onClick={handleExportToFile}>Export to File</button>
-          <button onClick={handleExportToClipboard}>Export to Clipboard</button>
+        <div className={styles.dataSection}>
+          <h3>Export Data</h3>
+          <div className={commonStyles.actions}>
+            <button onClick={handleExportToFile}>Export to File</button>
+            <button onClick={handleExportToClipboard}>
+              Export to Clipboard
+            </button>
+          </div>
         </div>
       </div>
 

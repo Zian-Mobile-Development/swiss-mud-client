@@ -182,7 +182,8 @@ export default function ConnectView({
         <button type='button' onClick={handleAdd} aria-label='Add profile'>
           +
         </button>
-        <ul role='list' aria-label='MUD profiles'>
+        <div className={commonStyles.sidebarList}>
+          <ul role='list' aria-label='MUD profiles'>
           {profiles.length === 0 ? (
             <li role='status' style={{ color: '#aaa', padding: '8px 16px' }}>
               No profiles
@@ -221,6 +222,7 @@ export default function ConnectView({
             ))
           )}
         </ul>
+        </div>
       </div>
       <div className={commonStyles.detailsPanel}>
         {editBuffer ? (

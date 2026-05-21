@@ -145,7 +145,8 @@ const TriggerView: React.FC<TriggerViewProps> = ({
         <button type='button' onClick={handleAdd} aria-label='Add trigger'>
           +
         </button>
-        <ul role='list' aria-label='Triggers'>
+        <div className={commonStyles.sidebarList}>
+          <ul role='list' aria-label='Triggers'>
           {localTriggers.map((trigger, index) => (
             <li
               key={index}
@@ -184,7 +185,8 @@ const TriggerView: React.FC<TriggerViewProps> = ({
               </button>
             </li>
           ))}
-        </ul>
+          </ul>
+        </div>
       </div>
       {selected && (
         <div className={commonStyles.detailsPanel}>
