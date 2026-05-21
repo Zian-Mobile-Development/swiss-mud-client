@@ -3,6 +3,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Menu } from './components/Menu';
+import { WikiPage } from './components/WikiPage';
 import type { MudProfile } from './components/ConnectView';
 import styles from './App.module.css';
 import commonStyles from './styles/common.module.css';
@@ -35,7 +36,7 @@ function trimOutput(html: string): string {
     : html;
 }
 
-function App() {
+function MudClientApp() {
   const outputRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState('Disconnected');
@@ -496,8 +497,16 @@ function App() {
           >
             {statusAnnouncement}
           </span>
-          <span className={styles.versionText} aria-label={`Version ${appVersion}`}>
-            v{appVersion}
+          <span className={styles.headerMeta}>
+            <a className={styles.wikiLink} href='/wiki'>
+              Wiki
+            </a>
+            <span
+              className={styles.versionText}
+              aria-label={`Version ${appVersion}`}
+            >
+              v{appVersion}
+            </span>
           </span>
         </div>
       </header>
@@ -571,6 +580,22 @@ function App() {
       </main>
     </div>
   );
+}
+
+function App() {
+  const [path, setPath] = useState(window.location.pathname);
+
+  useEffect(() => {
+    const handlePopState = () => setPath(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  if (path === '/wiki' || path.startsWith('/wiki/')) {
+    return <WikiPage path={path} />;
+  }
+
+  return <MudClientApp />;
 }
 
 export default App;

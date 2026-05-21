@@ -169,6 +169,24 @@
   color: #888888;
 }
 
+.headerMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.wikiLink {
+  color: #8fc7ff;
+  font-size: 0.9em;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wikiLink:hover {
+  color: #c7e4ff;
+}
+
 .inputHint {
   position: absolute;
   width: 1px;
