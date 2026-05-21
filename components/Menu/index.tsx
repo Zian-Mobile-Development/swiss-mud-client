@@ -13,6 +13,7 @@ import { SettingsView } from '../SettingsView';
 import { DataManager, type MudData } from '../../managers/DataManager';
 import { useAppContext } from '../../contexts/AppContext';
 import ScriptView from '../ScriptView';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 type MenuButton = {
   id: string;
@@ -47,20 +48,29 @@ function Popup({
   setActivePopup,
   activePopup,
 }: PopupProps) {
+  const popupRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(popupRef, isOpen, onClose);
+
   if (!isOpen) return null;
 
   return (
     <div
       className={styles.popupOverlay}
       onClick={onClose}
-      role='dialog'
-      aria-modal='true'
-      aria-labelledby='popup-title'
+      role='presentation'
     >
-      <div className={styles.popup} onClick={e => e.stopPropagation()}>
+      <div
+        ref={popupRef}
+        className={styles.popup}
+        onClick={e => e.stopPropagation()}
+        role='dialog'
+        aria-modal='true'
+        aria-labelledby='popup-title'
+      >
         <div className={styles.popupHeader}>
           <h3 id='popup-title'>{title}</h3>
           <button
+            type='button'
             className={styles.closeButton}
             onClick={onClose}
             aria-label='Close dialog'
@@ -70,10 +80,12 @@ function Popup({
             </span>
           </button>
         </div>
-        <div className={styles.popupNav} role='tablist'>
+        <div className={styles.popupNav} role='tablist' aria-label='Dialog sections'>
           {menuButtons.map(button => (
             <button
               key={button.id}
+              type='button'
+              id={`${button.id}-tab`}
               className={styles.popupNavButton}
               onClick={() => setActivePopup(button.id)}
               role='tab'
@@ -119,8 +131,8 @@ export function Menu({
 }) {
   const [activePopup, setActivePopup] = useState<string | null>(null);
   const { setVariables, settings, setSettings } = useAppContext();
+  const lastMenuButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  // Save refs for each view
   const aliasSaveRef = useRef<{ save: () => void } | null>(null);
   const triggerSaveRef = useRef<{ save: () => void } | null>(null);
   const scriptSaveRef = useRef<{ save: () => void } | null>(null);
@@ -130,13 +142,11 @@ export function Menu({
   useEffect(() => {
     if (!activePopup) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      // ESC closes popup
       if (e.key === 'Escape') {
         e.preventDefault();
         setActivePopup(null);
         return;
       }
-      // Cmd+S or Ctrl+S saves
       if ((e.key === 's' || e.key === 'S') && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         if (activePopup === 'alias' && aliasSaveRef.current) {
@@ -156,24 +166,24 @@ export function Menu({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activePopup]);
 
-  const handleButtonClick = (id: string) => {
+  const handleButtonClick = (id: string, button: HTMLButtonElement | null) => {
+    lastMenuButtonRef.current = button;
     setActivePopup(id);
   };
 
   const handleClose = () => {
     setActivePopup(null);
+    lastMenuButtonRef.current?.focus();
   };
 
   const handleProfileConnect = (profile: MudProfile) => {
     onProfileConnect?.(profile);
     setActivePopup(null);
+    lastMenuButtonRef.current?.focus();
   };
 
   const handleDataImport = (data: MudData) => {
-    // Save to localStorage using DataManager
     DataManager.saveDataToStorage(data);
-
-    // Update state
     setVariables(data.mud_variables);
     setAliases(data.mud_aliases);
     if (data.mud_triggers) {
@@ -182,16 +192,20 @@ export function Menu({
   };
 
   return (
-    <div className={styles.menu} role='navigation' aria-label='Main menu'>
+    <nav className={styles.menu} aria-label='Main menu'>
       {menuButtons.map(button => (
         <button
           key={button.id}
+          type='button'
           className={styles.menuButton}
-          onClick={() => handleButtonClick(button.id)}
+          onClick={e => handleButtonClick(button.id, e.currentTarget)}
           aria-label={button.label}
           aria-haspopup='dialog'
+          aria-expanded={activePopup === button.id}
         >
-          <span className={styles.buttonIcon}>{button.icon}</span>
+          <span className={styles.buttonIcon} aria-hidden='true'>
+            {button.icon}
+          </span>
           <span className={styles.buttonLabel}>{button.label}</span>
         </button>
       ))}
@@ -280,6 +294,6 @@ export function Menu({
       >
         <SettingsView settings={settings} onChange={setSettings} />
       </Popup>
-    </div>
+    </nav>
   );
 }

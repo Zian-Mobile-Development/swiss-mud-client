@@ -189,22 +189,22 @@ export default function ConnectView({ onConnect, saveRef }: ConnectViewProps) {
   return (
     <div className={commonStyles.viewContainer}>
       <div className={commonStyles.sidebar}>
-        <button onClick={handleAdd}>+</button>
-        <ul>
+        <button type='button' onClick={handleAdd} aria-label='Add profile'>
+          +
+        </button>
+        <ul role='list' aria-label='MUD profiles'>
           {profiles.length === 0 ? (
-            <li style={{ color: '#aaa', padding: '8px 16px' }}>
-              (No profiles)
+            <li role='status' style={{ color: '#aaa', padding: '8px 16px' }}>
+              No profiles
             </li>
           ) : (
             profiles.map((profile, idx) => (
               <li
                 key={idx}
                 className={classNames({
-                  [commonStyles.selected]: selectedIdx === idx,
                   [commonStyles.dragging]: false,
                   [commonStyles.dragOver]: false,
                 })}
-                onClick={() => handleSelect(idx)}
                 draggable
                 onDragStart={e => handleDragStart(e, idx)}
                 onDragOver={handleDragOver}
@@ -212,12 +212,21 @@ export default function ConnectView({ onConnect, saveRef }: ConnectViewProps) {
                 onDragEnd={handleDragEnd}
                 onDragLeave={handleDragLeave}
               >
-                <div className={commonStyles.itemContent}>
-                  <span className={commonStyles.dragHandle}>⋮</span>
-                  {profile.name || (
-                    <span style={{ color: '#aaa' }}>(unnamed)</span>
-                  )}
-                </div>
+                <button
+                  type='button'
+                  className={commonStyles.listRowButton}
+                  onClick={() => handleSelect(idx)}
+                  aria-current={selectedIdx === idx ? 'true' : undefined}
+                >
+                  <span className={commonStyles.itemContent}>
+                    <span className={commonStyles.dragHandle} aria-hidden='true'>
+                      ⋮
+                    </span>
+                    {profile.name || (
+                      <span style={{ color: '#aaa' }}>(unnamed)</span>
+                    )}
+                  </span>
+                </button>
               </li>
             ))
           )}
@@ -237,6 +246,7 @@ export default function ConnectView({ onConnect, saveRef }: ConnectViewProps) {
                   onChange={handleFieldChange}
                   placeholder='My MUD Profile'
                   required
+                  aria-required='true'
                 />
               </label>
             </div>
@@ -250,6 +260,7 @@ export default function ConnectView({ onConnect, saveRef }: ConnectViewProps) {
                   onChange={handleFieldChange}
                   placeholder='mud.example.com'
                   required
+                  aria-required='true'
                 />
               </label>
             </div>
@@ -263,6 +274,7 @@ export default function ConnectView({ onConnect, saveRef }: ConnectViewProps) {
                   onChange={handleFieldChange}
                   placeholder='23'
                   required
+                  aria-required='true'
                 />
               </label>
             </div>

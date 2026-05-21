@@ -4,9 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import type { Alias } from '../../types';
 import commonStyles from '../../styles/common.module.css';
-import classNames from 'classnames';
 import Editor from '@monaco-editor/react';
-import EditorOptions from '../../config/EditorOptions';
+import { editorOptionsWithLabel } from '../../config/EditorOptions';
 
 interface AliasViewProps {
   aliases: Alias[];
@@ -156,17 +155,13 @@ const AliasView: React.FC<AliasViewProps> = ({
   return (
     <div className={commonStyles.viewContainer}>
       <div className={commonStyles.sidebar}>
-        <button onClick={handleAdd}>+</button>
-        <ul>
+        <button type='button' onClick={handleAdd} aria-label='Add alias'>
+          +
+        </button>
+        <ul role='list' aria-label='Aliases'>
           {aliases.map((alias, index) => (
             <li
               key={index}
-              className={classNames({
-                [commonStyles.selected]: selectedIdx === index,
-                [commonStyles.dragging]: false,
-                [commonStyles.dragOver]: false,
-              })}
-              onClick={() => handleSelect(index)}
               draggable
               onDragStart={e => handleDragStart(e, index)}
               onDragOver={e => handleDragOver(e)}
@@ -174,12 +169,21 @@ const AliasView: React.FC<AliasViewProps> = ({
               onDragEnd={handleDragEnd}
               onDragLeave={handleDragLeave}
             >
-              <div className={commonStyles.itemContent}>
-                <span className={commonStyles.dragHandle}>⋮</span>
-                <input
-                  type='checkbox'
-                  checked={alias.enabled}
-                  onChange={e => {
+              <button
+                type='button'
+                className={commonStyles.listRowButton}
+                onClick={() => handleSelect(index)}
+                aria-current={selectedIdx === index ? 'true' : undefined}
+              >
+                <span className={commonStyles.itemContent}>
+                  <span className={commonStyles.dragHandle} aria-hidden='true'>
+                    ⋮
+                  </span>
+                  <input
+                    type='checkbox'
+                    checked={alias.enabled}
+                    aria-label={`Enable alias ${alias.name || 'unnamed'}`}
+                    onChange={e => {
                     e.stopPropagation();
                     const updated = aliases.map((a, i) =>
                       i === index ? { ...a, enabled: e.target.checked } : a
@@ -188,8 +192,9 @@ const AliasView: React.FC<AliasViewProps> = ({
                   }}
                   onClick={e => e.stopPropagation()}
                 />
-                <span>{alias.name}</span>
-              </div>
+                  <span>{alias.name}</span>
+                </span>
+              </button>
             </li>
           ))}
         </ul>
@@ -225,8 +230,8 @@ const AliasView: React.FC<AliasViewProps> = ({
                     setEditBuffer({ ...editBuffer, command: value || '' });
                   }
                 }}
-                theme={EditorOptions.theme}
-                options={EditorOptions}
+                theme={editorOptionsWithLabel('Alias command editor').theme}
+                options={editorOptionsWithLabel('Alias command editor')}
               />
             </div>
           </label>

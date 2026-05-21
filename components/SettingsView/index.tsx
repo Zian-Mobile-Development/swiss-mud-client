@@ -2,15 +2,9 @@
 // View for the settings.
 
 import React from 'react';
+import type { Settings, ScreenReaderVerbosity } from '../../types';
 import styles from './styles.module.css';
 import commonStyles from '../../styles/common.module.css';
-
-export interface Settings {
-  highlightInputOnCommand: boolean;
-  showCommandInOutput: boolean;
-  fontFamily: string;
-  fontSize: number;
-}
 
 interface SettingsViewProps {
   settings: Settings;
@@ -70,8 +64,44 @@ const FONT_FAMILIES = [
   },
 ];
 
+function ToggleRow({
+  label,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className={styles.settingItem}>
+      <label>
+        {label}
+        <div className={styles.toggleSwitch}>
+          <input
+            type='checkbox'
+            checked={checked}
+            onChange={onChange}
+            disabled={disabled}
+          />
+          <span className={styles.toggleSlider} aria-hidden='true' />
+        </div>
+      </label>
+    </div>
+  );
+}
+
 export function SettingsView({ settings, onChange }: SettingsViewProps) {
-  const handleToggle = (key: keyof Settings) => {
+  const handleToggle = (
+    key:
+      | 'highlightInputOnCommand'
+      | 'showCommandInOutput'
+      | 'screenReaderEnabled'
+      | 'announceConnectionStatus'
+      | 'announcePromptLines'
+  ) => {
     onChange({
       ...settings,
       [key]: !settings[key],
@@ -81,32 +111,16 @@ export function SettingsView({ settings, onChange }: SettingsViewProps) {
   return (
     <div className={commonStyles.viewContainer}>
       <div className={commonStyles.detailsPanel}>
-        <div className={styles.settingItem}>
-          <label>
-            Highlight input on command
-            <div className={styles.toggleSwitch}>
-              <input
-                type='checkbox'
-                checked={settings.highlightInputOnCommand}
-                onChange={() => handleToggle('highlightInputOnCommand')}
-              />
-              <span className={styles.toggleSlider} />
-            </div>
-          </label>
-        </div>
-        <div className={styles.settingItem}>
-          <label>
-            Show command in output
-            <div className={styles.toggleSwitch}>
-              <input
-                type='checkbox'
-                checked={settings.showCommandInOutput}
-                onChange={() => handleToggle('showCommandInOutput')}
-              />
-              <span className={styles.toggleSlider} />
-            </div>
-          </label>
-        </div>
+        <ToggleRow
+          label='Highlight input on command'
+          checked={settings.highlightInputOnCommand}
+          onChange={() => handleToggle('highlightInputOnCommand')}
+        />
+        <ToggleRow
+          label='Show command in output'
+          checked={settings.showCommandInOutput}
+          onChange={() => handleToggle('showCommandInOutput')}
+        />
         <div className={styles.settingItem}>
           <label>
             Output font family
@@ -143,6 +157,62 @@ export function SettingsView({ settings, onChange }: SettingsViewProps) {
             />
           </label>
         </div>
+
+        <section
+          className={styles.settingsSection}
+          aria-labelledby='screen-reader-settings-heading'
+        >
+          <h4
+            id='screen-reader-settings-heading'
+            className={styles.sectionHeading}
+          >
+            Screen reader
+          </h4>
+          <p className={styles.sectionDescription}>
+            Controls how game text is spoken. Visual output is unchanged.
+          </p>
+
+          <ToggleRow
+            label='Enable screen reader support'
+            checked={settings.screenReaderEnabled}
+            onChange={() => handleToggle('screenReaderEnabled')}
+          />
+          <div className={styles.settingItem}>
+            <label>
+              Announce game output
+              <select
+                value={settings.screenReaderVerbosity}
+                disabled={!settings.screenReaderEnabled}
+                onChange={e =>
+                  onChange({
+                    ...settings,
+                    screenReaderVerbosity: e.target
+                      .value as ScreenReaderVerbosity,
+                  })
+                }
+                style={{ marginLeft: 8 }}
+              >
+                <option value='lines'>Full lines only</option>
+                <option value='chunks'>As text arrives</option>
+              </select>
+            </label>
+          </div>
+          <ToggleRow
+            label='Announce connection changes'
+            checked={settings.announceConnectionStatus}
+            onChange={() => handleToggle('announceConnectionStatus')}
+            disabled={!settings.screenReaderEnabled}
+          />
+          <ToggleRow
+            label='Announce prompts without newline'
+            checked={settings.announcePromptLines}
+            onChange={() => handleToggle('announcePromptLines')}
+            disabled={
+              !settings.screenReaderEnabled ||
+              settings.screenReaderVerbosity !== 'lines'
+            }
+          />
+        </section>
       </div>
     </div>
   );

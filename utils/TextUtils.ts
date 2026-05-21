@@ -1,7 +1,17 @@
 // utils/TextUtils.ts
 // Utility functions for text manipulation.
 
-// Helper function to strip HTML tags
 export const stripHtmlTags = (html: string): string => {
-  return html.replace(/<[^>]*>/g, '');
+  const withoutTags = html.replace(/<[^>]*>/g, '');
+  return decodeHtmlEntities(withoutTags);
 };
+
+const decodeHtmlEntities = (text: string): string => {
+  if (!text.includes('&')) return text;
+  const textarea = document.createElement('textarea');
+  textarea.innerHTML = text;
+  return textarea.value;
+};
+
+export const normalizeLineForTrigger = (line: string): string =>
+  line.replace(/\r/g, '').trimEnd();

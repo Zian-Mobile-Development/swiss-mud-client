@@ -4,9 +4,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Trigger } from '../../types';
 import commonStyles from '../../styles/common.module.css';
-import classNames from 'classnames';
 import Editor from '@monaco-editor/react';
-import EditorOptions from '../../config/EditorOptions';
+import { editorOptionsWithLabel } from '../../config/EditorOptions';
 
 interface TriggerViewProps {
   triggers: Trigger[];
@@ -173,17 +172,13 @@ const TriggerView: React.FC<TriggerViewProps> = ({
   return (
     <div className={commonStyles.viewContainer}>
       <div className={commonStyles.sidebar}>
-        <button onClick={handleAdd}>+</button>
-        <ul>
+        <button type='button' onClick={handleAdd} aria-label='Add trigger'>
+          +
+        </button>
+        <ul role='list' aria-label='Triggers'>
           {localTriggers.map((trigger, index) => (
             <li
               key={index}
-              className={classNames({
-                [commonStyles.selected]: selectedIdx === index,
-                [commonStyles.dragging]: false,
-                [commonStyles.dragOver]: false,
-              })}
-              onClick={() => handleSelect(index)}
               draggable
               onDragStart={e => handleDragStart(e, index)}
               onDragOver={handleDragOver}
@@ -191,12 +186,21 @@ const TriggerView: React.FC<TriggerViewProps> = ({
               onDragEnd={handleDragEnd}
               onDragLeave={handleDragLeave}
             >
-              <div className={commonStyles.itemContent}>
-                <span className={commonStyles.dragHandle}>⋮</span>
-                <input
-                  type='checkbox'
-                  checked={trigger.enabled}
-                  onChange={e => {
+              <button
+                type='button'
+                className={commonStyles.listRowButton}
+                onClick={() => handleSelect(index)}
+                aria-current={selectedIdx === index ? 'true' : undefined}
+              >
+                <span className={commonStyles.itemContent}>
+                  <span className={commonStyles.dragHandle} aria-hidden='true'>
+                    ⋮
+                  </span>
+                  <input
+                    type='checkbox'
+                    checked={trigger.enabled}
+                    aria-label={`Enable trigger ${trigger.name || 'unnamed'}`}
+                    onChange={e => {
                     e.stopPropagation();
                     const updated = localTriggers.map((t, i) =>
                       i === index ? { ...t, enabled: e.target.checked } : t
@@ -205,8 +209,9 @@ const TriggerView: React.FC<TriggerViewProps> = ({
                   }}
                   onClick={e => e.stopPropagation()}
                 />
-                <span>{trigger.name}</span>
-              </div>
+                  <span>{trigger.name}</span>
+                </span>
+              </button>
             </li>
           ))}
         </ul>
@@ -247,8 +252,8 @@ const TriggerView: React.FC<TriggerViewProps> = ({
                       setEditBuffer({ ...editBuffer, command: value || '' });
                     }
                   }}
-                  theme={EditorOptions.theme}
-                  options={EditorOptions}
+                  theme={editorOptionsWithLabel('Trigger command editor').theme}
+                  options={editorOptionsWithLabel('Trigger command editor')}
                 />
               </div>
             </label>

@@ -1,6 +1,18 @@
 /* styles/common.module.css */
 /* Common styles for the application. */
 
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .viewContainer {
   display: flex;
   gap: 16px;
@@ -17,7 +29,8 @@
   border-radius: 8px 0 0 8px;
 }
 
-.sidebar button {
+/* Toolbar only (+, sort) — not list row buttons */
+.sidebar > button {
   background: #1976d2;
   color: #fff;
   border: none;
@@ -41,10 +54,28 @@
 }
 
 .sidebar li {
-  cursor: pointer;
   border-radius: 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.sidebar .listRowButton {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  font-weight: normal;
+  cursor: pointer;
   padding: 4px 8px;
+  border-radius: 4px;
   transition: background 0.2s;
+}
+
+.sidebar .listRowButton:hover,
+.sidebar .listRowButton[aria-current='true'] {
+  background: #444;
 }
 
 .selected,
@@ -208,4 +239,13 @@
 .buttonGroup button {
   flex: 1;
   min-width: 0;
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 0;
+  font-size: 1.25em;
+  font-weight: 700;
+  cursor: pointer;
+  margin: 0;
 }

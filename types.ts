@@ -19,12 +19,29 @@ export interface Command {
   waitTime?: number;
 }
 
+export type ScreenReaderVerbosity = 'lines' | 'chunks';
+
 export interface Settings {
   highlightInputOnCommand: boolean; // highlight the input when a command is sent
   showCommandInOutput: boolean; // show the command in the output
   fontFamily: string; // Font family for output
   fontSize: number; // Font size for output in pixels
+  screenReaderEnabled: boolean;
+  screenReaderVerbosity: ScreenReaderVerbosity;
+  announceConnectionStatus: boolean;
+  announcePromptLines: boolean;
 }
+
+export const DEFAULT_SETTINGS: Settings = {
+  highlightInputOnCommand: true,
+  showCommandInOutput: true,
+  fontFamily: 'monospace',
+  fontSize: 14,
+  screenReaderEnabled: true,
+  screenReaderVerbosity: 'lines',
+  announceConnectionStatus: true,
+  announcePromptLines: true,
+};
 
 export interface Script {
   name: string;

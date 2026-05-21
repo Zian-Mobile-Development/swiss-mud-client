@@ -4,9 +4,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Script } from '../../types';
 import commonStyles from '../../styles/common.module.css';
-import classNames from 'classnames';
 import Editor from '@monaco-editor/react';
-import EditorOptions from '../../config/EditorOptions';
+import { editorOptionsWithLabel } from '../../config/EditorOptions';
 
 interface ScriptViewProps {
   scripts: Script[];
@@ -167,17 +166,13 @@ const ScriptView: React.FC<ScriptViewProps> = ({
   return (
     <div className={commonStyles.viewContainer}>
       <div className={commonStyles.sidebar}>
-        <button onClick={handleAdd}>+</button>
-        <ul>
+        <button type='button' onClick={handleAdd} aria-label='Add script'>
+          +
+        </button>
+        <ul role='list' aria-label='Scripts'>
           {localScripts.map((script, index) => (
             <li
               key={index}
-              className={classNames({
-                [commonStyles.selected]: selectedIdx === index,
-                [commonStyles.dragging]: false,
-                [commonStyles.dragOver]: false,
-              })}
-              onClick={() => handleSelect(index)}
               draggable
               onDragStart={e => handleDragStart(e, index)}
               onDragOver={handleDragOver}
@@ -185,12 +180,21 @@ const ScriptView: React.FC<ScriptViewProps> = ({
               onDragEnd={handleDragEnd}
               onDragLeave={handleDragLeave}
             >
-              <div className={commonStyles.itemContent}>
-                <span className={commonStyles.dragHandle}>⋮</span>
-                <input
-                  type='checkbox'
-                  checked={script.enabled}
-                  onChange={e => {
+              <button
+                type='button'
+                className={commonStyles.listRowButton}
+                onClick={() => handleSelect(index)}
+                aria-current={selectedIdx === index ? 'true' : undefined}
+              >
+                <span className={commonStyles.itemContent}>
+                  <span className={commonStyles.dragHandle} aria-hidden='true'>
+                    ⋮
+                  </span>
+                  <input
+                    type='checkbox'
+                    checked={script.enabled}
+                    aria-label={`Enable script ${script.name || 'unnamed'}`}
+                    onChange={e => {
                     e.stopPropagation();
                     const updated = localScripts.map((s, i) =>
                       i === index ? { ...s, enabled: e.target.checked } : s
@@ -199,8 +203,9 @@ const ScriptView: React.FC<ScriptViewProps> = ({
                   }}
                   onClick={e => e.stopPropagation()}
                 />
-                <span>{script.name}</span>
-              </div>
+                  <span>{script.name}</span>
+                </span>
+              </button>
             </li>
           ))}
         </ul>
@@ -236,8 +241,8 @@ const ScriptView: React.FC<ScriptViewProps> = ({
                     setEditBuffer({ ...editBuffer, command: value || '' });
                   }
                 }}
-                theme={EditorOptions.theme}
-                options={EditorOptions}
+                theme={editorOptionsWithLabel('Script command editor').theme}
+                options={editorOptionsWithLabel('Script command editor')}
               />
             </div>
           </label>

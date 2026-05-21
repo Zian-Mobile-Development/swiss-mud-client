@@ -14,6 +14,13 @@ const EditorOptions: editor.IStandaloneEditorConstructionOptions = {
   scrollBeyondLastLine: false,
   inlayHints: { enabled: 'off' },
   lineDecorationsWidth: 0,
+  ariaLabel: 'Code editor',
 };
+
+export function editorOptionsWithLabel(
+  label: string
+): editor.IStandaloneEditorConstructionOptions {
+  return { ...EditorOptions, ariaLabel: label };
+}
 
 export default EditorOptions;

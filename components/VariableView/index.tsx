@@ -5,7 +5,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import commonStyles from '../../styles/common.module.css';
 import { useAppContext } from '../../contexts/AppContext';
 import type { Variable } from '../../types';
-import classNames from 'classnames';
 
 const emptyVariable: Variable = { name: '', value: '' };
 const STORAGE_KEY = 'mud_variables';
@@ -172,21 +171,21 @@ export default function VariableView({
     <div className={commonStyles.viewContainer}>
       <div className={commonStyles.sidebar}>
         <div className={commonStyles.buttonGroup}>
-          <button onClick={handleAdd}>+</button>
-          <button onClick={handleSort} title='Sort alphabetically'>
+          <button type='button' onClick={handleAdd} aria-label='Add variable'>
+            +
+          </button>
+          <button
+            type='button'
+            onClick={handleSort}
+            aria-label='Sort variables alphabetically'
+          >
             ⇅
           </button>
         </div>
-        <ul>
+        <ul role='list' aria-label='Variables'>
           {localVariables.map((variable, index) => (
             <li
               key={index}
-              className={classNames({
-                [commonStyles.selected]: selectedIdx === index,
-                [commonStyles.dragging]: false,
-                [commonStyles.dragOver]: false,
-              })}
-              onClick={() => handleSelect(index)}
               draggable
               onDragStart={e => handleDragStart(e, index)}
               onDragOver={handleDragOver}
@@ -194,10 +193,19 @@ export default function VariableView({
               onDragEnd={handleDragEnd}
               onDragLeave={handleDragLeave}
             >
-              <div className={commonStyles.itemContent}>
-                <span className={commonStyles.dragHandle}>⋮</span>
-                <span>{variable.name}</span>
-              </div>
+              <button
+                type='button'
+                className={commonStyles.listRowButton}
+                onClick={() => handleSelect(index)}
+                aria-current={selectedIdx === index ? 'true' : undefined}
+              >
+                <span className={commonStyles.itemContent}>
+                  <span className={commonStyles.dragHandle} aria-hidden='true'>
+                    ⋮
+                  </span>
+                  <span>{variable.name}</span>
+                </span>
+              </button>
             </li>
           ))}
         </ul>

@@ -2,7 +2,7 @@
 // Context for the application.
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Variable, Settings } from '../types';
+import { Variable, Settings, DEFAULT_SETTINGS } from '../types';
 
 interface AppContextType {
   variables: Variable[];
@@ -19,12 +19,7 @@ export function AppContextProvider({
   children: React.ReactNode;
 }) {
   const [variables, setVariables] = useState<Variable[]>([]);
-  const [settings, setSettings] = useState<Settings>({
-    highlightInputOnCommand: true,
-    showCommandInOutput: true,
-    fontFamily: 'monospace',
-    fontSize: 14,
-  });
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   // Load variables from localStorage on mount
   useEffect(() => {
@@ -43,11 +38,9 @@ export function AppContextProvider({
       try {
         const parsedSettings = JSON.parse(storeSettings);
         setSettings({
-          highlightInputOnCommand:
-            parsedSettings.highlightInputOnCommand ?? true,
-          showCommandInOutput: parsedSettings.showCommandInOutput ?? true,
-          fontFamily: parsedSettings.fontFamily ?? 'monospace',
-          fontSize: parsedSettings.fontSize || 14,
+          ...DEFAULT_SETTINGS,
+          ...parsedSettings,
+          fontSize: parsedSettings.fontSize || DEFAULT_SETTINGS.fontSize,
         });
       } catch (e) {
         console.error('Failed to parse settings:', e);

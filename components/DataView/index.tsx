@@ -90,6 +90,8 @@ const DataView: React.FC<DataViewProps> = ({ onImport }) => {
         </label>
         {status && (
           <div
+            role='status'
+            aria-live='polite'
             className={`${commonStyles.statusMessage} ${
               commonStyles[status.type]
             }`}

@@ -1,10 +1,11 @@
 // App.tsx
 // Main component for the application.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Menu } from './components/Menu';
 import type { MudProfile } from './components/ConnectView';
 import styles from './App.module.css';
+import commonStyles from './styles/common.module.css';
 import classNames from 'classnames';
 import { CommandEngine } from './engines/CommandEngine';
 import { WebSocketManager } from './managers/WebSocketManager';
@@ -12,9 +13,19 @@ import { Alias, Trigger, Settings, Script } from './types';
 import { handleCommandInput } from './utils/CommandHandler';
 import { setWebSocketManager, send } from './utils/CommandAction';
 import { useAppContext } from './contexts/AppContext';
-import { stripHtmlTags } from './utils/TextUtils';
-import { ON_SCREEN_CMD_LIMIT } from './constants';
+import { normalizeLineForTrigger } from './utils/TextUtils';
+import {
+  ON_SCREEN_CMD_LIMIT,
+  PROMPT_FLUSH_MS,
+  SR_CHUNK_DEBOUNCE_MS,
+} from './constants';
 import { ClientCommandManager } from './utils/ClientCommands';
+import { LineBuffer } from './utils/LineBuffer';
+import {
+  isSystemMessage,
+  plainTextFromHtmlChunk,
+  shouldUseLineBufferForTriggers,
+} from './utils/a11yAnnounce';
 
 const OUTPUT_CHAR_LIMIT = ON_SCREEN_CMD_LIMIT * 2000;
 
@@ -28,6 +39,7 @@ function App() {
   const outputRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState('Disconnected');
+  const [statusAnnouncement, setStatusAnnouncement] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<MudProfile | null>(
     null
   );
@@ -43,50 +55,170 @@ function App() {
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [outputHtml, setOutputHtml] = useState('');
+  const [srAnnouncement, setSrAnnouncement] = useState('');
   const [isLockedToBottom, setIsLockedToBottom] = useState(true);
   const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
   const [triggersEnabled, setTriggersEnabled] = useState(true);
   const clientCommands = useRef(new ClientCommandManager());
+  const triggerLineBufferRef = useRef(new LineBuffer());
+  const srLineBufferRef = useRef(new LineBuffer());
+  const promptFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const chunkDebounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const chunkPendingRef = useRef('');
 
   const [line, setLine] = useState<string>('');
 
-  // Retrieve app version from environment variables
   const appVersion = import.meta.env.VITE_APP_VERSION || '0.0.0.0-dev';
 
-  // Add iOS viewport adjustment
+  const clearPromptFlushTimer = useCallback(() => {
+    if (promptFlushTimerRef.current) {
+      clearTimeout(promptFlushTimerRef.current);
+      promptFlushTimerRef.current = null;
+    }
+  }, []);
+
+  const clearChunkDebounce = useCallback(() => {
+    if (chunkDebounceTimerRef.current) {
+      clearTimeout(chunkDebounceTimerRef.current);
+      chunkDebounceTimerRef.current = null;
+    }
+    chunkPendingRef.current = '';
+  }, []);
+
+  const resetStreamBuffers = useCallback(() => {
+    triggerLineBufferRef.current.reset();
+    srLineBufferRef.current.reset();
+    clearPromptFlushTimer();
+    clearChunkDebounce();
+  }, [clearPromptFlushTimer, clearChunkDebounce]);
+
+  const announceToScreenReader = useCallback((text: string) => {
+    if (!text) return;
+    setSrAnnouncement(prev => (prev ? `${prev}\n${text}` : text));
+  }, []);
+
+  const schedulePromptFlush = useCallback(() => {
+    clearPromptFlushTimer();
+    if (
+      !settings.screenReaderEnabled ||
+      !settings.announcePromptLines ||
+      settings.screenReaderVerbosity !== 'lines' ||
+      !srLineBufferRef.current.hasPending()
+    ) {
+      return;
+    }
+
+    promptFlushTimerRef.current = setTimeout(() => {
+      promptFlushTimerRef.current = null;
+      const pending = srLineBufferRef.current.flush();
+      if (pending) announceToScreenReader(normalizeLineForTrigger(pending));
+    }, PROMPT_FLUSH_MS);
+  }, [settings, clearPromptFlushTimer, announceToScreenReader]);
+
+  const ingestGameChunk = useCallback(
+    (data: string) => {
+      if (isSystemMessage(data)) return;
+
+      const plain = plainTextFromHtmlChunk(data);
+
+      if (settings.screenReaderEnabled) {
+        if (settings.screenReaderVerbosity === 'lines') {
+          const lines = srLineBufferRef.current
+            .append(plain)
+            .map(normalizeLineForTrigger)
+            .filter(Boolean);
+          for (const textLine of lines) {
+            announceToScreenReader(textLine);
+          }
+          if (srLineBufferRef.current.hasPending()) {
+            schedulePromptFlush();
+          } else {
+            clearPromptFlushTimer();
+          }
+        } else {
+          chunkPendingRef.current += plain;
+          if (chunkDebounceTimerRef.current) {
+            clearTimeout(chunkDebounceTimerRef.current);
+          }
+          chunkDebounceTimerRef.current = setTimeout(() => {
+            chunkDebounceTimerRef.current = null;
+            const batch = chunkPendingRef.current;
+            chunkPendingRef.current = '';
+            if (batch) announceToScreenReader(batch);
+          }, SR_CHUNK_DEBOUNCE_MS);
+        }
+      }
+
+      if (
+        settings.screenReaderEnabled &&
+        shouldUseLineBufferForTriggers(settings)
+      ) {
+        const lines = triggerLineBufferRef.current
+          .append(plain)
+          .map(normalizeLineForTrigger)
+          .filter(Boolean);
+        for (const textLine of lines) {
+          if (textLine) setLine(textLine);
+        }
+      } else {
+        setLine(normalizeLineForTrigger(plain));
+      }
+    },
+    [
+      settings,
+      announceToScreenReader,
+      schedulePromptFlush,
+      clearPromptFlushTimer,
+    ]
+  );
+
+  const announceConnection = useCallback(
+    (message: string) => {
+      if (settings.announceConnectionStatus) {
+        setStatusAnnouncement(message);
+      }
+    },
+    [settings.announceConnectionStatus]
+  );
+
+  const announceUserCommand = useCallback(
+    (command: string) => {
+      if (settings.screenReaderEnabled) {
+        announceToScreenReader(`> ${command}`);
+      }
+    },
+    [settings.screenReaderEnabled, announceToScreenReader]
+  );
+
   useEffect(() => {
-    // Set viewport meta tag for mobile devices
     const viewportMeta = document.createElement('meta');
     viewportMeta.name = 'viewport';
     viewportMeta.content =
       'width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0';
     document.head.appendChild(viewportMeta);
 
-    // Add viewport height listener for iOS
     const handleResize = () => {
-      // Small delay to let Safari UI settle
       setTimeout(() => {
         setViewportHeight(window.innerHeight);
-        // Force scroll to bottom if locked
         if (isLockedToBottom && outputRef.current) {
           outputRef.current.scrollTop = outputRef.current.scrollHeight;
         }
       }, 100);
     };
 
-    // Handle orientation changes specifically
     const handleOrientationChange = () => {
-      // Longer delay for orientation changes
       setTimeout(handleResize, 300);
     };
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleOrientationChange);
 
-    // iOS-specific fix for virtual keyboard
     if (inputRef.current) {
       inputRef.current.addEventListener('focus', () => {
-        // Small delay to let keyboard appear
         setTimeout(() => {
           if (outputRef.current) {
             outputRef.current.scrollTop = outputRef.current.scrollHeight;
@@ -102,7 +234,6 @@ function App() {
     };
   }, [isLockedToBottom]);
 
-  // Initialize command engine
   useEffect(() => {
     const storedAliases = localStorage.getItem('mud_aliases');
     const storedTriggers = localStorage.getItem('mud_triggers');
@@ -145,16 +276,15 @@ function App() {
         parsedTriggers,
         settings,
         {
-          onCommandSend: (command: string, settings: Settings) => {
-            if (settings.showCommandInOutput) {
+          onCommandSend: (command: string, cmdSettings: Settings) => {
+            if (cmdSettings.showCommandInOutput) {
               setOutputHtml(prev =>
                 trimOutput(
                   prev + `<div class="user-cmd">&gt; ${command}</div>`
                 )
               );
             }
-
-            // Send the command to the MUD server
+            announceUserCommand(command);
             send(command);
           },
           onVariableSet: (name: string, value: string) => {
@@ -175,89 +305,94 @@ function App() {
     );
   }, [wsManager]);
 
-  // Update the CommandEngine when aliases change
   useEffect(() => {
     if (commandEngine) {
       commandEngine.setAliases(aliases);
     }
-  }, [aliases]);
+  }, [aliases, commandEngine]);
 
-  // Update the CommandEngine when variables change
   useEffect(() => {
     if (commandEngine) {
       commandEngine.setVariables(variables);
     }
-  }, [variables]);
+  }, [variables, commandEngine]);
 
-  // Update the CommandEngine when triggers change
   useEffect(() => {
     if (commandEngine) {
       commandEngine.setTriggers(triggers);
     }
-  }, [triggers]);
+  }, [triggers, commandEngine]);
 
-  // Update the CommandEngine when scripts change
   useEffect(() => {
     if (commandEngine) {
       commandEngine.setScripts(scripts);
     }
-  }, [scripts]);
+  }, [scripts, commandEngine]);
 
   useEffect(() => {
     if (commandEngine) {
       commandEngine.setSettings(settings);
     }
-  }, [settings]);
+  }, [settings, commandEngine]);
 
-  // Process incoming line with triggers
   useEffect(() => {
     if (line && commandEngine && triggersEnabled) {
       commandEngine.processPattern(line, 'trigger');
     }
-  }, [line, triggersEnabled]);
+  }, [line, triggersEnabled, commandEngine]);
 
-  // Setup WebSocket connection when a profile is selected
   useEffect(() => {
     if (!selectedProfile) return;
 
     const manager = new WebSocketManager({
       onOpen: () => {
+        resetStreamBuffers();
         setStatus('Connected');
         setCanSend(false);
         inputRef.current?.focus();
       },
       onClose: () => {
+        resetStreamBuffers();
         setStatus('Disconnected');
         setCanSend(false);
+        announceConnection('Disconnected');
       },
-      onError: () => setStatus('Error occurred'),
+      onError: () => {
+        setStatus('Error occurred');
+        announceConnection('Connection error');
+      },
       onMessage: (data: string) => {
         setOutputHtml(prev => trimOutput(prev + data));
-
-        const msgData = stripHtmlTags(data);
-        setLine(msgData);
+        ingestGameChunk(data);
       },
-      onConnected: () => setCanSend(true),
+      onConnected: () => {
+        setCanSend(true);
+        if (selectedProfile) {
+          announceConnection(`Connected to ${selectedProfile.name}`);
+          document.title = `${selectedProfile.name} - Swiss Mud Client`;
+        }
+      },
     });
 
     manager.connect(selectedProfile);
     setWsManager(manager);
-
-    // Set the WebSocketManager in commands.ts
     setWebSocketManager(manager);
 
     return () => {
+      resetStreamBuffers();
       manager.disconnect();
+      document.title = 'Swiss Mud Client';
     };
-  }, [selectedProfile]);
+  }, [
+    selectedProfile,
+    resetStreamBuffers,
+    ingestGameChunk,
+    announceConnection,
+  ]);
 
-  // Handle scrolling behavior
   const handleOutputScroll = () => {
     if (!outputRef.current) return;
-
     const { scrollTop, scrollHeight, clientHeight } = outputRef.current;
-
-    // If the user is within 300px of the bottom, consider it locked
     if (scrollHeight - scrollTop - clientHeight < 300) {
       setIsLockedToBottom(true);
     } else {
@@ -265,28 +400,25 @@ function App() {
     }
   };
 
-  // Auto-scroll to bottom when messages update (if locked)
   useEffect(() => {
     if (isLockedToBottom && outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
   }, [outputHtml, isLockedToBottom]);
 
-  // Initialize client commands
   useEffect(() => {
     clientCommands.current.setClearScreenHandler(() => {
       setOutputHtml('');
+      setSrAnnouncement('');
+      resetStreamBuffers();
     });
-  }, []);
+  }, [resetStreamBuffers]);
 
-  // Handle keyboard input
   const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!commandEngine || !wsManager) return;
 
     if (e.key === 'Enter') {
       const command = e.currentTarget.value.trim();
-
-      // Try to execute client command first
       if (clientCommands.current.executeCommand(command)) {
         e.currentTarget.value = '';
         return;
@@ -299,7 +431,6 @@ function App() {
       canSend,
       onCommandHistoryUpdate: command => {
         setCommandHistory(prev => {
-          // Only add the command if it's different from the previous one
           if (prev.length === 0 || prev[0] !== command) {
             return [command, ...prev];
           }
@@ -311,18 +442,13 @@ function App() {
       commandHistory,
     });
 
-    // After handling the command, re-focus/select the input if Enter was pressed
     if (e.key === 'Enter') {
       setTimeout(() => {
-        // Highlight input if enabled
         if (settings.highlightInputOnCommand) {
           inputRef.current?.select();
         } else {
-          //clear the input
           inputRef.current!.value = '';
         }
-
-        // Snap to bottom when Enter is pressed
         if (outputRef.current) {
           outputRef.current.scrollTop = outputRef.current.scrollHeight;
         }
@@ -330,36 +456,53 @@ function App() {
     }
   };
 
+  const inputDescribedBy = canSend
+    ? 'command-input-hint'
+    : 'command-input-hint input-status-hint';
+
   return (
     <div
       className={styles.main}
       style={{ height: `${viewportHeight}px` }}
-      role='application'
-      aria-label='Swiss Mud Client'
     >
-      <Menu
-        onProfileConnect={setSelectedProfile}
-        aliases={aliases}
-        setAliases={setAliases}
-        triggers={triggers}
-        setTriggers={setTriggers}
-        scripts={scripts}
-        setScripts={setScripts}
-      />
-      <div
-        className={classNames(styles.status, {
-          [styles.statusConnected]: status === 'Connected',
-        })}
-        role='status'
-      >
-        <span className={styles.statusText}>
-          {selectedProfile
-            ? `${status} (${selectedProfile.name})`
-            : 'No profile selected'}
-        </span>
-        <span className={styles.versionText}>v{appVersion}</span>
-      </div>
-      <div className={styles.container} role='main'>
+      <a href='#command-input' className={styles.skipLink}>
+        Skip to command input
+      </a>
+
+      <header>
+        <Menu
+          onProfileConnect={setSelectedProfile}
+          aliases={aliases}
+          setAliases={setAliases}
+          triggers={triggers}
+          setTriggers={setTriggers}
+          scripts={scripts}
+          setScripts={setScripts}
+        />
+        <div
+          className={classNames(styles.status, {
+            [styles.statusConnected]: status === 'Connected',
+          })}
+        >
+          <span className={styles.statusText} role='status' aria-live='polite'>
+            {selectedProfile
+              ? `${status} (${selectedProfile.name})`
+              : 'No profile selected'}
+          </span>
+          <span
+            className={commonStyles.visuallyHidden}
+            role='status'
+            aria-live='polite'
+          >
+            {statusAnnouncement}
+          </span>
+          <span className={styles.versionText} aria-label={`Version ${appVersion}`}>
+            v{appVersion}
+          </span>
+        </div>
+      </header>
+
+      <main className={styles.container}>
         <div
           ref={outputRef}
           className={styles.output}
@@ -367,32 +510,51 @@ function App() {
             fontFamily: settings.fontFamily,
             fontSize: `${settings.fontSize}px`,
           }}
-          onClick={() => {
-            inputRef.current?.focus();
-          }}
+          onClick={() => inputRef.current?.focus()}
           onScroll={handleOutputScroll}
-          role='log'
-          aria-label='Game output'
-          aria-live='polite'
-          tabIndex={0}
+          tabIndex={settings.screenReaderEnabled ? -1 : 0}
+          aria-hidden={settings.screenReaderEnabled ? true : undefined}
         >
           <div dangerouslySetInnerHTML={{ __html: outputHtml }} />
         </div>
+
+        {settings.screenReaderEnabled && (
+          <div
+            className={commonStyles.visuallyHidden}
+            role='log'
+            aria-live='polite'
+            aria-relevant='additions'
+            aria-atomic='false'
+            aria-label='Game output for screen readers'
+          >
+            {srAnnouncement}
+          </div>
+        )}
+
         <div className={styles.inputContainer}>
+          <span id='command-input-hint' className={styles.inputHint}>
+            Press Enter to send. Up and Down arrow keys recall command history.
+          </span>
+          <span id='input-status-hint' className={styles.inputHint}>
+            Connect to a MUD profile to send commands.
+          </span>
           <input
             ref={inputRef}
+            id='command-input'
             type='text'
             className={styles.input}
             placeholder='Type your command here...'
             onKeyDown={handleKeyDown}
             disabled={!canSend}
             aria-label='Command input'
+            aria-describedby={inputDescribedBy}
             aria-disabled={!canSend}
             autoCorrect='off'
             autoComplete='off'
             spellCheck='false'
           />
           <button
+            type='button'
             className={classNames(styles.triggerToggle, {
               [styles.triggerToggleDisabled]: !triggersEnabled,
             })}
@@ -400,12 +562,13 @@ function App() {
             aria-label={
               triggersEnabled ? 'Disable triggers' : 'Enable triggers'
             }
+            aria-pressed={triggersEnabled}
             title={triggersEnabled ? 'Disable triggers' : 'Enable triggers'}
           >
-            {triggersEnabled ? '🔔' : '🔕'}
+            <span aria-hidden='true'>{triggersEnabled ? '🔔' : '🔕'}</span>
           </button>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

@@ -9,6 +9,29 @@
   overflow: hidden;
 }
 
+.skipLink {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  z-index: 100;
+  padding: 0.5rem 1rem;
+  background: #1976d2;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.skipLink:focus {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  width: auto;
+  height: auto;
+}
+
 .main {
   display: flex;
   flex-direction: column;
@@ -143,7 +166,19 @@
 
 .versionText {
   font-size: 0.8em;
-  color: #888888; /* Lighter color for the version */
+  color: #888888;
+}
+
+.inputHint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 @media only screen and (max-width: 430px) {
