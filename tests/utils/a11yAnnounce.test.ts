@@ -1,4 +1,7 @@
-import { isSystemMessage, shouldUseLineBufferForTriggers } from '../a11yAnnounce';
+import {
+  isSystemMessage,
+  shouldUseLineBufferForTriggers,
+} from '../../utils/a11yAnnounce';
 import { DEFAULT_SETTINGS } from '../../types';
 
 describe('a11yAnnounce', () => {

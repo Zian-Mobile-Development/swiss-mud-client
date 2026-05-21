@@ -1,7 +1,7 @@
-// engines/__tests__/AliasEngine.test.ts
+// tests/engines/AliasEngine.test.ts
 // Tests for the AliasEngine.
 
-import { processPatterns } from '../PatternEngine';
+import { processPatterns } from '../../engines/PatternEngine';
 import type { Alias, Variable } from '../../types';
 
 describe('processPatterns', () => {

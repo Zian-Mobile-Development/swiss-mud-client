@@ -78,3 +78,8 @@ select {
   color: #63b3f4;
   font-family: inherit;
 }
+
+.system-message {
+  color: #ffcf66;
+  font-family: inherit;
+}

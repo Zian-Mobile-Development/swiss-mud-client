@@ -38,7 +38,7 @@ If Bun is unavailable in a local agent shell, use the installed project binaries
 
 After substantive changes, run the build locally. Run tests for changes in command parsing, line buffering, triggers, aliases, accessibility announcements, or shared utilities.
 
-Known current test caveat: `utils/__tests__/CommandUtils.test.ts` expects `parseSpeedwalk('')` to return `['']`, while the current implementation returns `[]`.
+Known current test caveat: `tests/utils/CommandUtils.test.ts` expects `parseSpeedwalk('')` to return `['']`, while the current implementation returns `[]`.
 
 ## Architecture & State Management
 
@@ -143,7 +143,7 @@ Known current test caveat: `utils/__tests__/CommandUtils.test.ts` expects `parse
 
 ### Tests
 
-- Unit tests live beside code in `__tests__` folders.
+- Unit tests live in the top-level `tests/` folder, mirroring source layout (e.g. `tests/utils/`, `tests/engines/`).
 - Prioritize tests for:
   - command parsing and speedwalk behavior
   - alias and trigger processing

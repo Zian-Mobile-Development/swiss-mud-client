@@ -5,8 +5,8 @@ import type { MudProfile } from '../components/ConnectView';
 
 export interface WebSocketManagerOptions {
   onOpen: () => void;
-  onClose: () => void;
-  onError: () => void;
+  onClose: (event: CloseEvent) => void;
+  onError: (event: Event) => void;
   onMessage: (data: string) => void;
   onConnected: () => void;
 }
@@ -17,6 +17,7 @@ export class WebSocketManager {
   private closedByUser = false;
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private currentProfile: MudProfile | null = null;
+  private connectionId = 0;
 
   constructor(options: WebSocketManagerOptions) {
     this.options = options;
@@ -24,13 +25,19 @@ export class WebSocketManager {
 
   public connect(profile: MudProfile): void {
     if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onclose = null;
+      this.ws.onerror = null;
+      this.ws.onmessage = null;
       this.ws.close();
     }
 
+    this.closedByUser = false;
     this.currentProfile = profile;
+    const connectionId = ++this.connectionId;
     const url = import.meta.env.VITE_WS_URL || 'ws://0.0.0.0:3000';
     this.ws = new WebSocket(url);
-    this.setupEventHandlers();
+    this.setupEventHandlers(connectionId);
   }
 
   public disconnect(): void {
@@ -40,6 +47,10 @@ export class WebSocketManager {
       this.reconnectTimeout = null;
     }
     if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onclose = null;
+      this.ws.onerror = null;
+      this.ws.onmessage = null;
       this.ws.close();
       this.ws = null;
     }
@@ -55,14 +66,16 @@ export class WebSocketManager {
     return this.ws?.readyState === WebSocket.OPEN;
   }
 
-  private setupEventHandlers(): void {
+  private setupEventHandlers(connectionId: number): void {
     if (!this.ws) return;
+    const ws = this.ws;
 
-    this.ws.onopen = () => {
+    ws.onopen = () => {
+      if (connectionId !== this.connectionId) return;
       this.options.onOpen();
       // Send profile as first message
       if (this.currentProfile) {
-        this.ws?.send(
+        ws.send(
           JSON.stringify({
             address: this.currentProfile.address,
             port: this.currentProfile.port,
@@ -72,8 +85,9 @@ export class WebSocketManager {
       }
     };
 
-    this.ws.onclose = () => {
-      this.options.onClose();
+    ws.onclose = event => {
+      if (connectionId !== this.connectionId) return;
+      this.options.onClose(event);
       if (!this.closedByUser && this.currentProfile) {
         this.reconnectTimeout = setTimeout(() => {
           this.connect(this.currentProfile!);
@@ -81,11 +95,13 @@ export class WebSocketManager {
       }
     };
 
-    this.ws.onerror = () => {
-      this.options.onError();
+    ws.onerror = event => {
+      if (connectionId !== this.connectionId) return;
+      this.options.onError(event);
     };
 
-    this.ws.onmessage = event => {
+    ws.onmessage = event => {
+      if (connectionId !== this.connectionId) return;
       this.options.onMessage(event.data);
       if (
         typeof event.data === 'string' &&

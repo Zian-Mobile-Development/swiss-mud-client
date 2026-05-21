@@ -1,7 +1,7 @@
-// engines/__tests__/TriggerEngine.test.ts
+// tests/engines/TriggerEngine.test.ts
 // Tests for the TriggerEngine.
 
-import { processPatterns } from '../PatternEngine';
+import { processPatterns } from '../../engines/PatternEngine';
 import type { Trigger } from '../../types';
 
 describe('processPatterns', () => {

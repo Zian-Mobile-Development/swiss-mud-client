@@ -1,4 +1,4 @@
-import { parseSpeedwalk } from '../CommandUtils';
+import { parseSpeedwalk } from '../../utils/CommandUtils';
 
 describe('parseSpeedwalk', () => {
   it('parses normal speedwalk string', () => {

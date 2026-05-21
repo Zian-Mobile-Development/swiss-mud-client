@@ -15,11 +15,7 @@ import { handleCommandInput } from './utils/CommandHandler';
 import { setWebSocketManager, send } from './utils/CommandAction';
 import { useAppContext } from './contexts/AppContext';
 import { normalizeLineForTrigger } from './utils/TextUtils';
-import {
-  ON_SCREEN_CMD_LIMIT,
-  PROMPT_FLUSH_MS,
-  SR_CHUNK_DEBOUNCE_MS,
-} from './constants';
+import { PROMPT_FLUSH_MS, SR_CHUNK_DEBOUNCE_MS } from './constants';
 import { ClientCommandManager } from './utils/ClientCommands';
 import { LineBuffer } from './utils/LineBuffer';
 import {
@@ -27,14 +23,8 @@ import {
   plainTextFromHtmlChunk,
   shouldUseLineBufferForTriggers,
 } from './utils/a11yAnnounce';
-
-const OUTPUT_CHAR_LIMIT = ON_SCREEN_CMD_LIMIT * 2000;
-
-function trimOutput(html: string): string {
-  return html.length > OUTPUT_CHAR_LIMIT
-    ? html.slice(-OUTPUT_CHAR_LIMIT)
-    : html;
-}
+import { formatWebSocketClose, trimOutput } from './utils/OutputUtils';
+import { escapeHtml } from './utils/TextUtils';
 
 function MudClientApp() {
   const outputRef = useRef<HTMLDivElement>(null);
@@ -352,14 +342,26 @@ function MudClientApp() {
         setCanSend(false);
         inputRef.current?.focus();
       },
-      onClose: () => {
+      onClose: event => {
         resetStreamBuffers();
-        setStatus('Disconnected');
+        const closeMessage = formatWebSocketClose(event);
+        setStatus(`Disconnected (${event.code})`);
         setCanSend(false);
+        setOutputHtml(prev =>
+          trimOutput(
+            prev + `<div class="system-message">${escapeHtml(closeMessage)}</div>`
+          )
+        );
         announceConnection('Disconnected');
       },
       onError: () => {
         setStatus('Error occurred');
+        setOutputHtml(prev =>
+          trimOutput(
+            prev +
+              '<div class="system-message">[ERROR] WebSocket error occurred</div>'
+          )
+        );
         announceConnection('Connection error');
       },
       onMessage: (data: string) => {

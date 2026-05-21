@@ -1,4 +1,4 @@
-import { LineBuffer } from '../LineBuffer';
+import { LineBuffer } from '../../utils/LineBuffer';
 
 describe('LineBuffer', () => {
   it('reassembles a line split across chunks', () => {
