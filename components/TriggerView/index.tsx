@@ -6,6 +6,8 @@ import type { Trigger } from '../../types';
 import commonStyles from '../../styles/common.module.css';
 import Editor from '@monaco-editor/react';
 import { editorOptionsWithLabel } from '../../config/EditorOptions';
+import { IconLabel } from '../icons/IconLabel';
+import { GripVertical, Plus, Save, Trash2 } from 'lucide-react';
 
 interface TriggerViewProps {
   triggers: Trigger[];
@@ -142,8 +144,13 @@ const TriggerView: React.FC<TriggerViewProps> = ({
   return (
     <div className={commonStyles.viewContainer}>
       <div className={commonStyles.sidebar}>
-        <button type='button' onClick={handleAdd} aria-label='Add trigger'>
-          +
+        <button
+          type='button'
+          className={commonStyles.sidebarToolbarButton}
+          onClick={handleAdd}
+          aria-label='Add trigger'
+        >
+          <Plus size={20} aria-hidden />
         </button>
         <div className={commonStyles.sidebarList}>
           <ul role='list' aria-label='Triggers'>
@@ -164,9 +171,11 @@ const TriggerView: React.FC<TriggerViewProps> = ({
                 aria-current={selectedIdx === index ? 'true' : undefined}
               >
                 <span className={commonStyles.itemContent}>
-                  <span className={commonStyles.dragHandle} aria-hidden='true'>
-                    ⋮
-                  </span>
+                  <GripVertical
+                    size={14}
+                    className={commonStyles.dragHandle}
+                    aria-hidden
+                  />
                   <input
                     type='checkbox'
                     checked={trigger.enabled}
@@ -232,9 +241,14 @@ const TriggerView: React.FC<TriggerViewProps> = ({
           </div>
           <div className={commonStyles.actions}>
             <button onClick={handleSave} disabled={!hasUnsaved}>
-              Save
+              <IconLabel icon={Save}>Save</IconLabel>
             </button>
-            <button onClick={handleDelete}>Delete</button>
+            <button
+              onClick={handleDelete}
+              className={commonStyles.deleteAction}
+            >
+              <IconLabel icon={Trash2}>Delete</IconLabel>
+            </button>
           </div>
         </div>
       )}

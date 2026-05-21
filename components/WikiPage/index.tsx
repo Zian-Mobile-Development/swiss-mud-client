@@ -7,6 +7,8 @@ import {
   wikiEntries,
   wikiPath,
 } from './wikiData';
+import { IconLabel } from '../icons/IconLabel';
+import { FileText, Folder, Home, Search, Terminal } from 'lucide-react';
 
 type WikiPageProps = {
   path: string;
@@ -28,11 +30,10 @@ export function WikiPage({ path }: WikiPageProps) {
 
         <div className={styles.sidebarActions}>
           <a className={styles.iconButton} href='/' aria-label='Back to client'>
-            <span aria-hidden='true'>⌂</span>
+            <Home size={18} aria-hidden />
           </a>
           <a className={styles.mainMenuButton} href='/'>
-            <span aria-hidden='true'>▲</span>
-            Client
+            <IconLabel icon={Terminal}>Client</IconLabel>
           </a>
         </div>
 
@@ -43,9 +44,11 @@ export function WikiPage({ path }: WikiPageProps) {
               href={wikiPath(item.slug)}
               aria-current={activeEntry.slug === item.slug ? 'page' : undefined}
             >
-              <span className={styles.navIcon} aria-hidden='true'>
-                {item.navType === 'folder' ? '■' : '▤'}
-              </span>
+              {item.navType === 'folder' ? (
+                <Folder size={16} className={styles.navIcon} aria-hidden />
+              ) : (
+                <FileText size={16} className={styles.navIcon} aria-hidden />
+              )}
               <span>{item.label}</span>
             </a>
           ))}
@@ -55,13 +58,13 @@ export function WikiPage({ path }: WikiPageProps) {
       <div className={styles.workspace}>
         <header className={styles.topbar}>
           <label className={styles.search}>
-            <span aria-hidden='true'>⌕</span>
+            <Search size={16} aria-hidden />
             <input type='search' placeholder='Search...' aria-label='Search wiki' />
           </label>
         </header>
 
         <div className={styles.breadcrumbBar}>
-          <span aria-hidden='true'>⌂</span>
+          <Home size={14} aria-hidden />
           <span>/</span>
           <strong>{activeEntry.slug}</strong>
         </div>

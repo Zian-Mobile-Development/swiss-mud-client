@@ -4,6 +4,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import commonStyles from '../../styles/common.module.css';
 import classNames from 'classnames';
+import { IconLabel } from '../icons/IconLabel';
+import { GripVertical, Plug, Plus, Save, Trash2 } from 'lucide-react';
 import type { MudProfile } from '../../types';
 import { createProfileId, saveProfiles } from '../../utils/ProfileDataStore';
 
@@ -179,8 +181,13 @@ export default function ConnectView({
   return (
     <div className={commonStyles.viewContainer}>
       <div className={commonStyles.sidebar}>
-        <button type='button' onClick={handleAdd} aria-label='Add profile'>
-          +
+        <button
+          type='button'
+          className={commonStyles.sidebarToolbarButton}
+          onClick={handleAdd}
+          aria-label='Add profile'
+        >
+          <Plus size={20} aria-hidden />
         </button>
         <div className={commonStyles.sidebarList}>
           <ul role='list' aria-label='MUD profiles'>
@@ -210,9 +217,11 @@ export default function ConnectView({
                   aria-current={selectedIdx === idx ? 'true' : undefined}
                 >
                   <span className={commonStyles.itemContent}>
-                    <span className={commonStyles.dragHandle} aria-hidden='true'>
-                      ⋮
-                    </span>
+                    <GripVertical
+                      size={14}
+                      className={commonStyles.dragHandle}
+                      aria-hidden
+                    />
                     {profile.name || (
                       <span style={{ color: '#aaa' }}>(unnamed)</span>
                     )}
@@ -293,7 +302,7 @@ export default function ConnectView({
                 onClick={handleConnect}
                 disabled={!editBuffer.name || !editBuffer.address}
               >
-                Connect
+                <IconLabel icon={Plug}>Connect</IconLabel>
               </button>
               <button
                 className={commonStyles.deleteAction}
@@ -301,10 +310,10 @@ export default function ConnectView({
                 onClick={handleDelete}
                 disabled={selectedIdx === null}
               >
-                Delete
+                <IconLabel icon={Trash2}>Delete</IconLabel>
               </button>
               <button type='button' onClick={handleSave} disabled={!hasUnsaved}>
-                Save
+                <IconLabel icon={Save}>Save</IconLabel>
               </button>
             </div>
           </>

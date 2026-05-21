@@ -6,6 +6,8 @@ import type { Alias } from '../../types';
 import commonStyles from '../../styles/common.module.css';
 import Editor from '@monaco-editor/react';
 import { editorOptionsWithLabel } from '../../config/EditorOptions';
+import { IconLabel } from '../icons/IconLabel';
+import { GripVertical, Plus, Save, Trash2 } from 'lucide-react';
 
 interface AliasViewProps {
   aliases: Alias[];
@@ -131,8 +133,13 @@ const AliasView: React.FC<AliasViewProps> = ({
   return (
     <div className={commonStyles.viewContainer}>
       <div className={commonStyles.sidebar}>
-        <button type='button' onClick={handleAdd} aria-label='Add alias'>
-          +
+        <button
+          type='button'
+          className={commonStyles.sidebarToolbarButton}
+          onClick={handleAdd}
+          aria-label='Add alias'
+        >
+          <Plus size={20} aria-hidden />
         </button>
         <div className={commonStyles.sidebarList}>
           <ul role='list' aria-label='Aliases'>
@@ -153,9 +160,11 @@ const AliasView: React.FC<AliasViewProps> = ({
                 aria-current={selectedIdx === index ? 'true' : undefined}
               >
                 <span className={commonStyles.itemContent}>
-                  <span className={commonStyles.dragHandle} aria-hidden='true'>
-                    ⋮
-                  </span>
+                  <GripVertical
+                    size={14}
+                    className={commonStyles.dragHandle}
+                    aria-hidden
+                  />
                   <input
                     type='checkbox'
                     checked={alias.enabled}
@@ -214,15 +223,14 @@ const AliasView: React.FC<AliasViewProps> = ({
             </div>
           </label>
           <div className={commonStyles.actions}>
-            <button
-              onClick={handleSave}
-              disabled={!hasUnsaved}
-              style={{ background: hasUnsaved ? '#1976d2' : '#aaa' }}
-            >
-              Save
+            <button onClick={handleSave} disabled={!hasUnsaved}>
+              <IconLabel icon={Save}>Save</IconLabel>
             </button>
-            <button onClick={handleDelete} style={{ background: '#c62828' }}>
-              Delete
+            <button
+              onClick={handleDelete}
+              className={commonStyles.deleteAction}
+            >
+              <IconLabel icon={Trash2}>Delete</IconLabel>
             </button>
           </div>
         </div>

@@ -40,6 +40,8 @@ import {
   updateProfileData,
   type ProfileDataMap,
 } from './utils/ProfileDataStore';
+import { IconLabel } from './components/icons/IconLabel';
+import { Bell, BellOff, BookOpen, Unplug } from 'lucide-react';
 
 function StatusBar({
   appVersion,
@@ -76,7 +78,7 @@ function StatusBar({
       </span>
       <span className={styles.headerMeta}>
         <a className={styles.wikiLink} href='/wiki'>
-          Wiki
+          <IconLabel icon={BookOpen}>Wiki</IconLabel>
         </a>
         <span
           className={styles.versionText}
@@ -90,7 +92,7 @@ function StatusBar({
             className={styles.disconnectButton}
             onClick={onDisconnect}
           >
-            Disconnect
+            <IconLabel icon={Unplug}>Disconnect</IconLabel>
           </button>
         )}
       </span>
@@ -183,7 +185,11 @@ function CommandInputBar({
         aria-pressed={triggersEnabled}
         title={triggersEnabled ? 'Disable triggers' : 'Enable triggers'}
       >
-        <span aria-hidden='true'>{triggersEnabled ? '🔔' : '🔕'}</span>
+        {triggersEnabled ? (
+          <Bell size={18} className={commonStyles.icon} aria-hidden />
+        ) : (
+          <BellOff size={18} className={commonStyles.icon} aria-hidden />
+        )}
       </button>
     </div>
   );

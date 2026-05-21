@@ -14,22 +14,9 @@ import type { MudData } from '../../managers/DataManager';
 import { useAppContext } from '../../contexts/AppContext';
 import ScriptView from '../ScriptView';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
-
-type MenuButton = {
-  id: string;
-  label: string;
-  icon: string;
-};
-
-const menuButtons: MenuButton[] = [
-  { id: 'connect', label: 'Connect', icon: '🔌' },
-  { id: 'triggers', label: 'Triggers', icon: '⚡' },
-  { id: 'alias', label: 'Alias', icon: '📝' },
-  { id: 'scripts', label: 'Scripts', icon: '📜' },
-  { id: 'variables', label: 'Variables', icon: '📊' },
-  { id: 'data', label: 'Data', icon: '💾' },
-  { id: 'settings', label: 'Settings', icon: '⚙️' },
-];
+import { MENU_ITEMS } from '../../config/menuIcons';
+import { X } from 'lucide-react';
+import { MenuTileButton } from './MenuTileButton';
 
 type PopupProps = {
   isOpen: boolean;
@@ -75,28 +62,23 @@ function Popup({
             onClick={onClose}
             aria-label='Close dialog'
           >
-            <span className={styles.buttonIcon} aria-hidden='true'>
-              ✕
-            </span>
+            <X className={styles.tileIcon} size={24} aria-hidden />
           </button>
         </div>
         <div className={styles.popupNav} role='tablist' aria-label='Dialog sections'>
-          {menuButtons.map(button => (
-            <button
-              key={button.id}
-              type='button'
-              id={`${button.id}-tab`}
-              className={styles.popupNavButton}
-              onClick={() => setActivePopup(button.id)}
+          {MENU_ITEMS.map(({ id, label, icon }) => (
+            <MenuTileButton
+              key={id}
+              id={`${id}-tab`}
+              variant='popup'
+              icon={icon}
+              label={label}
+              iconSize={18}
+              onClick={() => setActivePopup(id)}
               role='tab'
-              aria-selected={activePopup === button.id}
-              aria-controls={`${button.id}-panel`}
-            >
-              <span className={styles.popupNavIcon} aria-hidden='true'>
-                {button.icon}
-              </span>
-              <span className={styles.popupNavLabel}>{button.label}</span>
-            </button>
+              aria-selected={activePopup === id}
+              aria-controls={`${id}-panel`}
+            />
           ))}
         </div>
         <div
@@ -204,21 +186,18 @@ export function Menu({
 
   return (
     <nav className={styles.menu} aria-label='Main menu'>
-      {menuButtons.map(button => (
-        <button
-          key={button.id}
-          type='button'
-          className={styles.menuButton}
-          onClick={e => handleButtonClick(button.id, e.currentTarget)}
-          aria-label={button.label}
+      {MENU_ITEMS.map(({ id, label, icon }) => (
+        <MenuTileButton
+          key={id}
+          variant='menu'
+          icon={icon}
+          label={label}
+          iconSize={22}
+          onClick={e => handleButtonClick(id, e.currentTarget)}
+          aria-label={label}
           aria-haspopup='dialog'
-          aria-expanded={activePopup === button.id}
-        >
-          <span className={styles.buttonIcon} aria-hidden='true'>
-            {button.icon}
-          </span>
-          <span className={styles.buttonLabel}>{button.label}</span>
-        </button>
+          aria-expanded={activePopup === id}
+        />
       ))}
 
       <Popup

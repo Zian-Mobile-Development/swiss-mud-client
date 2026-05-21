@@ -123,7 +123,7 @@
 }
 
 .triggerToggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 36px;
@@ -184,12 +184,15 @@
 }
 
 .disconnectButton {
+  display: inline-flex;
+  align-items: center;
   border: 1px solid #8a3d3d;
   border-radius: 4px;
   padding: 4px 8px;
   background-color: #2d1111;
   color: #ffb3b3;
   font-size: 0.85em;
+  cursor: pointer;
 }
 
 .disconnectButton:hover {
@@ -214,6 +217,8 @@
 }
 
 .wikiLink {
+  display: inline-flex;
+  align-items: center;
   color: #8fc7ff;
   font-size: 0.9em;
   text-decoration: underline;

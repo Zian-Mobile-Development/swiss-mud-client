@@ -5,6 +5,14 @@ import React, { useState } from 'react';
 import styles from './styles.module.css';
 import commonStyles from '../../styles/common.module.css';
 import { DataManager, type MudData } from '../../managers/DataManager';
+import { IconLabel } from '../icons/IconLabel';
+import {
+  ClipboardCopy,
+  Download,
+  Eraser,
+  FileUp,
+  Upload,
+} from 'lucide-react';
 
 interface DataViewProps {
   activeProfileName: string;
@@ -98,7 +106,7 @@ const DataView: React.FC<DataViewProps> = ({
               onClick={handleClearProfileData}
               disabled={!canClearProfileData}
             >
-              Clear Current Profile Data
+              <IconLabel icon={Eraser}>Clear Current Profile Data</IconLabel>
             </button>
           </div>
         </div>
@@ -106,9 +114,11 @@ const DataView: React.FC<DataViewProps> = ({
         <div className={styles.dataSection}>
           <h3>Export Data</h3>
           <div className={commonStyles.actions}>
-            <button onClick={handleExportToFile}>Export to File</button>
+            <button onClick={handleExportToFile}>
+              <IconLabel icon={Download}>Export to File</IconLabel>
+            </button>
             <button onClick={handleExportToClipboard}>
-              Export to Clipboard
+              <IconLabel icon={ClipboardCopy}>Export to Clipboard</IconLabel>
             </button>
           </div>
         </div>
@@ -124,7 +134,7 @@ const DataView: React.FC<DataViewProps> = ({
             onChange={handleImportFromFile}
             style={{ display: 'none' }}
           />
-          Import from File
+          <IconLabel icon={FileUp}>Import from File</IconLabel>
         </label>
         {status && (
           <div
@@ -151,11 +161,10 @@ const DataView: React.FC<DataViewProps> = ({
           />
           <div className={styles.importButtonRow}>
             <button
-              className={commonStyles.actions}
               onClick={handleImportFromText}
               disabled={!importText.trim()}
             >
-              Import
+              <IconLabel icon={Upload}>Import</IconLabel>
             </button>
           </div>
         </div>

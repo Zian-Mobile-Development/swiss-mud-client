@@ -4,6 +4,16 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import commonStyles from '../../styles/common.module.css';
 import type { Variable } from '../../types';
+import { IconLabel } from '../icons/IconLabel';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  GripVertical,
+  Plus,
+  Save,
+  Trash2,
+} from 'lucide-react';
 
 const emptyVariable: Variable = { name: '', value: '' };
 
@@ -179,11 +189,17 @@ export default function VariableView({
     <div className={commonStyles.viewContainer}>
       <div className={commonStyles.sidebar}>
         <div className={commonStyles.buttonGroup}>
-          <button type='button' onClick={handleAdd} aria-label='Add variable'>
-            +
+          <button
+            type='button'
+            className={commonStyles.sidebarToolbarButton}
+            onClick={handleAdd}
+            aria-label='Add variable'
+          >
+            <Plus size={20} aria-hidden />
           </button>
           <button
             type='button'
+            className={commonStyles.sidebarToolbarButton}
             onClick={handleSort}
             aria-pressed={sortOrder !== null}
             aria-label={
@@ -194,7 +210,13 @@ export default function VariableView({
                   : 'Clear sort and restore original order'
             }
           >
-            {sortOrder === 'asc' ? '↑' : sortOrder === 'desc' ? '↓' : '⇅'}
+            {sortOrder === 'asc' ? (
+              <ArrowUp size={20} aria-hidden />
+            ) : sortOrder === 'desc' ? (
+              <ArrowDown size={20} aria-hidden />
+            ) : (
+              <ArrowUpDown size={20} aria-hidden />
+            )}
           </button>
         </div>
         <div className={commonStyles.sidebarList}>
@@ -216,9 +238,11 @@ export default function VariableView({
                 aria-current={selectedIdx === index ? 'true' : undefined}
               >
                 <span className={commonStyles.itemContent}>
-                  <span className={commonStyles.dragHandle} aria-hidden='true'>
-                    ⋮
-                  </span>
+                  <GripVertical
+                    size={14}
+                    className={commonStyles.dragHandle}
+                    aria-hidden
+                  />
                   <span>{variable.name}</span>
                 </span>
               </button>
@@ -253,13 +277,13 @@ export default function VariableView({
           </div>
           <div className={commonStyles.actions}>
             <button onClick={handleSave} disabled={!hasUnsaved}>
-              Save
+              <IconLabel icon={Save}>Save</IconLabel>
             </button>
             <button
               onClick={handleDelete}
-              className={commonStyles.deleteButton}
+              className={commonStyles.deleteAction}
             >
-              Delete
+              <IconLabel icon={Trash2}>Delete</IconLabel>
             </button>
           </div>
         </div>

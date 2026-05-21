@@ -9,14 +9,13 @@
   border-bottom: 1px solid #333;
 }
 
-.menuButton {
+.tileButton {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-evenly;
   gap: 6px;
-  width: 80px;
-  height: 80px;
+  min-width: 80px;
   background-color: #1a1a1a;
   border: 1px solid #333;
   border-radius: 4px;
@@ -25,16 +24,16 @@
   transition: all 0.2s ease;
 }
 
-.menuButton:hover {
+.tileButton:hover {
   background-color: #333;
   border-color: #00ff00;
 }
 
-.buttonIcon {
-  font-size: 20px;
+.tileIcon {
+  flex-shrink: 0;
 }
 
-.buttonLabel {
+.tileLabel {
   font-size: 12px;
   font-weight: bold;
 }
@@ -67,9 +66,8 @@
   transition: all 0.2s ease;
 }
 
-.closeButton .buttonIcon {
-  font-size: 24px;
-  line-height: 1;
+.closeButton .tileIcon {
+  flex-shrink: 0;
 }
 
 .closeButton:hover {
@@ -83,41 +81,6 @@
   padding: 10px;
   border-bottom: 1px solid #333;
   background-color: #222;
-}
-
-.popupNavButton {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px;
-  min-width: 80px;
-  background-color: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 4px;
-  color: #00ff00;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.popupNavButton:hover {
-  background-color: #333;
-  border-color: #00ff00;
-}
-
-.popupNavButton[aria-selected="true"] {
-  background-color: #333;
-  border-color: #00ff00;
-}
-
-.popupNavIcon {
-  font-size: 14px;
-}
-
-.popupNavLabel {
-  font-size: 12px;
-  font-weight: bold;
 }
 
 .popupContent {
