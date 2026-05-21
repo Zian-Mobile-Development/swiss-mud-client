@@ -1,58 +1,35 @@
 // components/VariableView/index.tsx
 // View for the variables.
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import commonStyles from '../../styles/common.module.css';
-import { useAppContext } from '../../contexts/AppContext';
 import type { Variable } from '../../types';
 
 const emptyVariable: Variable = { name: '', value: '' };
-const STORAGE_KEY = 'mud_variables';
 
 export default function VariableView({
+  variables,
+  onChange,
   saveRef,
 }: {
+  variables: Variable[];
+  onChange: (variables: Variable[]) => void;
   saveRef?: React.RefObject<{ save: () => void } | null>;
 }) {
-  const { variables, setVariables } = useAppContext();
   const [selectedIdx, setSelectedIdx] = useState<number | null>(
     variables.length > 0 ? 0 : null
   );
   const [editBuffer, setEditBuffer] = useState<Variable | null>(null);
   const [localVariables, setLocalVariables] = useState<Variable[]>(variables);
-  const initialLoad = useRef(true);
 
   // Helper function to save variables
-  const saveVariables = (updated: Variable[]) => {
+  const saveVariables = useCallback((updated: Variable[]) => {
     setLocalVariables(updated);
-    setVariables(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
+    onChange(updated);
+  }, [onChange]);
 
-  // Load from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          saveVariables(parsed);
-          setSelectedIdx(parsed.length > 0 ? 0 : null);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    // eslint-disable-next-line
-  }, []);
-
-  // Keep localVariables in sync with parent variables (except on initial load)
-  useEffect(() => {
-    if (!initialLoad.current) {
-      setLocalVariables(variables);
-    } else {
-      initialLoad.current = false;
-    }
+    setLocalVariables(variables);
   }, [variables]);
 
   // When selectedIdx changes, update editBuffer
@@ -96,13 +73,13 @@ export default function VariableView({
   };
 
   // Save changes to selected variable
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (selectedIdx === null || !editBuffer) return;
     const updated = localVariables.map((variable, idx) =>
       idx === selectedIdx ? { ...editBuffer } : variable
     );
     saveVariables(updated);
-  };
+  }, [editBuffer, localVariables, saveVariables, selectedIdx]);
 
   // Expose save method to parent via ref
   useEffect(() => {

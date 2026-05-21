@@ -1,7 +1,7 @@
 // managers/WebSocketManager.ts
 // Manages the WebSocket connection to the MUD server.
 
-import type { MudProfile } from '../components/ConnectView';
+import type { MudProfile } from '../types';
 
 export interface WebSocketManagerOptions {
   onOpen: () => void;

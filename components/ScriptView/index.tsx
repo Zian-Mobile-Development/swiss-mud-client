@@ -1,7 +1,7 @@
 // components/ScriptView/index.tsx
 // View for the scripts.
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import type { Script } from '../../types';
 import commonStyles from '../../styles/common.module.css';
 import Editor from '@monaco-editor/react';
@@ -14,7 +14,6 @@ interface ScriptViewProps {
 }
 
 const emptyScript: Script = { name: '', event: '', command: '', enabled: true };
-const STORAGE_KEY = 'mud_scripts';
 
 const ScriptView: React.FC<ScriptViewProps> = ({
   scripts,
@@ -26,43 +25,15 @@ const ScriptView: React.FC<ScriptViewProps> = ({
   );
   const [editBuffer, setEditBuffer] = useState<Script | null>(null);
   const [localScripts, setLocalScripts] = useState<Script[]>(scripts);
-  const initialLoad = useRef(true);
 
   // Helper function to save scripts
-  const saveScripts = (updated: Script[]) => {
+  const saveScripts = useCallback((updated: Script[]) => {
     setLocalScripts(updated);
     onChange(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
+  }, [onChange]);
 
-  // Load from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          const scriptsWithEnabled = parsed.map((script: Script) => ({
-            ...script,
-            enabled: script.enabled ?? true,
-          }));
-          saveScripts(scriptsWithEnabled);
-          setSelectedIdx(scriptsWithEnabled.length > 0 ? 0 : null);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    // eslint-disable-next-line
-  }, []);
-
-  // Keep localScripts in sync with parent scripts (except on initial load)
-  useEffect(() => {
-    if (!initialLoad.current) {
-      setLocalScripts(scripts);
-    } else {
-      initialLoad.current = false;
-    }
+    setLocalScripts(scripts);
   }, [scripts]);
 
   // When selectedIdx changes, update editBuffer
@@ -92,13 +63,13 @@ const ScriptView: React.FC<ScriptViewProps> = ({
   };
 
   // Save changes to selected script
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (selectedIdx === null || !editBuffer) return;
     const updated = localScripts.map((script, idx) =>
       idx === selectedIdx ? { ...editBuffer } : script
     );
     saveScripts(updated);
-  };
+  }, [editBuffer, localScripts, saveScripts, selectedIdx]);
 
   // Expose save method to parent via ref
   useEffect(() => {

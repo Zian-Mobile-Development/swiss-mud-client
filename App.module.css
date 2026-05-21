@@ -183,6 +183,36 @@
   flex-shrink: 0;
 }
 
+.disconnectButton {
+  border: 1px solid #8a3d3d;
+  border-radius: 4px;
+  padding: 4px 8px;
+  background-color: #2d1111;
+  color: #ffb3b3;
+  font-size: 0.85em;
+}
+
+.disconnectButton:hover {
+  border-color: #c75656;
+  background-color: #3a1717;
+}
+
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: 72px;
+  z-index: 1000;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 10px 14px;
+  border: 1px solid #2c7a4d;
+  border-radius: 6px;
+  background-color: #10291c;
+  color: #b8f3cf;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
 .wikiLink {
   color: #8fc7ff;
   font-size: 0.9em;

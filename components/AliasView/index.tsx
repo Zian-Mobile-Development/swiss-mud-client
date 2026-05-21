@@ -1,7 +1,7 @@
 // components/AliasView/index.tsx
 // View for the aliases.
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import type { Alias } from '../../types';
 import commonStyles from '../../styles/common.module.css';
 import Editor from '@monaco-editor/react';
@@ -14,7 +14,6 @@ interface AliasViewProps {
 }
 
 const emptyAlias: Alias = { name: '', pattern: '', command: '', enabled: true };
-const STORAGE_KEY = 'mud_aliases';
 
 const AliasView: React.FC<AliasViewProps> = ({
   aliases,
@@ -27,32 +26,9 @@ const AliasView: React.FC<AliasViewProps> = ({
   const [editBuffer, setEditBuffer] = useState<Alias | null>(null);
 
   // Helper function to save aliases
-  const saveAliases = (updated: Alias[]) => {
+  const saveAliases = useCallback((updated: Alias[]) => {
     onChange(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          // Ensure all aliases have enabled set to true by default
-          const aliasesWithEnabled = parsed.map(alias => ({
-            ...alias,
-            enabled: alias.enabled ?? true,
-          }));
-          saveAliases(aliasesWithEnabled);
-          setSelectedIdx(aliasesWithEnabled.length > 0 ? 0 : null);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    // eslint-disable-next-line
-  }, []);
+  }, [onChange]);
 
   // When selectedIdx changes, update editBuffer
   useEffect(() => {
@@ -81,13 +57,13 @@ const AliasView: React.FC<AliasViewProps> = ({
   };
 
   // Save changes to selected alias
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (selectedIdx === null || !editBuffer) return;
     const updated = aliases.map((alias, idx) =>
       idx === selectedIdx ? { ...editBuffer } : alias
     );
     saveAliases(updated);
-  };
+  }, [aliases, editBuffer, saveAliases, selectedIdx]);
 
   // Expose save method to parent via ref
   useEffect(() => {

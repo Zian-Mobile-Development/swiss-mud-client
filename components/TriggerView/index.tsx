@@ -1,7 +1,7 @@
 // components/TriggerView/index.tsx
 // View for the triggers.
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import type { Trigger } from '../../types';
 import commonStyles from '../../styles/common.module.css';
 import Editor from '@monaco-editor/react';
@@ -19,7 +19,6 @@ const emptyTrigger: Trigger = {
   command: '',
   enabled: true,
 };
-const STORAGE_KEY = 'mud_triggers';
 
 const TriggerView: React.FC<TriggerViewProps> = ({
   triggers,
@@ -31,44 +30,15 @@ const TriggerView: React.FC<TriggerViewProps> = ({
   );
   const [editBuffer, setEditBuffer] = useState<Trigger | null>(null);
   const [localTriggers, setLocalTriggers] = useState<Trigger[]>(triggers);
-  const initialLoad = useRef(true);
 
   // Helper function to save triggers
-  const saveTriggers = (updated: Trigger[]) => {
+  const saveTriggers = useCallback((updated: Trigger[]) => {
     setLocalTriggers(updated);
     onChange(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
+  }, [onChange]);
 
-  // Load from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          // Ensure all triggers have enabled set to true by default
-          const triggersWithEnabled = parsed.map(trigger => ({
-            ...trigger,
-            enabled: trigger.enabled ?? true,
-          }));
-          saveTriggers(triggersWithEnabled);
-          setSelectedIdx(triggersWithEnabled.length > 0 ? 0 : null);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    // eslint-disable-next-line
-  }, []);
-
-  // Keep localTriggers in sync with parent triggers (except on initial load)
-  useEffect(() => {
-    if (!initialLoad.current) {
-      setLocalTriggers(triggers);
-    } else {
-      initialLoad.current = false;
-    }
+    setLocalTriggers(triggers);
   }, [triggers]);
 
   // When selectedIdx changes, update editBuffer
@@ -98,13 +68,13 @@ const TriggerView: React.FC<TriggerViewProps> = ({
   };
 
   // Save changes to selected trigger
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (selectedIdx === null || !editBuffer) return;
     const updated = localTriggers.map((trigger, idx) =>
       idx === selectedIdx ? { ...editBuffer } : trigger
     );
     saveTriggers(updated);
-  };
+  }, [editBuffer, localTriggers, saveTriggers, selectedIdx]);
 
   // Expose save method to parent via ref
   useEffect(() => {

@@ -9,13 +9,13 @@ import React, {
 } from 'react';
 import { Menu } from './components/Menu';
 import { WikiPage } from './components/WikiPage';
-import type { MudProfile } from './components/ConnectView';
 import styles from './App.module.css';
 import commonStyles from './styles/common.module.css';
 import classNames from 'classnames';
 import { CommandEngine } from './engines/CommandEngine';
 import { WebSocketManager } from './managers/WebSocketManager';
-import { Alias, Trigger, Settings, Script } from './types';
+import { DataManager, type MudData } from './managers/DataManager';
+import { Alias, Trigger, Settings, Script, MudProfile, Variable } from './types';
 import { handleCommandInput } from './utils/CommandHandler';
 import { setWebSocketManager, send } from './utils/CommandAction';
 import { useAppContext } from './contexts/AppContext';
@@ -30,40 +30,28 @@ import {
   htmlChunkToTerminalText,
   formatWebSocketClose,
 } from './utils/OutputUtils';
-
-interface StoredAutomation {
-  aliases: Alias[];
-  triggers: Trigger[];
-  scripts: Script[];
-}
-
-function readStoredJson<T>(key: string, fallback: T): T {
-  const storedValue = localStorage.getItem(key);
-  if (!storedValue) return fallback;
-
-  try {
-    return JSON.parse(storedValue) as T;
-  } catch (error) {
-    console.error(`Failed to parse ${key}:`, error);
-    return fallback;
-  }
-}
-
-function loadStoredAutomation(): StoredAutomation {
-  return {
-    aliases: readStoredJson<Alias[]>('mud_aliases', []),
-    triggers: readStoredJson<Trigger[]>('mud_triggers', []),
-    scripts: readStoredJson<Script[]>('mud_scripts', []),
-  };
-}
+import {
+  emptyProfileData,
+  getProfileData,
+  loadProfileDataMap,
+  loadProfiles,
+  saveProfileDataMap,
+  saveProfiles,
+  updateProfileData,
+  type ProfileDataMap,
+} from './utils/ProfileDataStore';
 
 function StatusBar({
   appVersion,
+  canDisconnect,
+  onDisconnect,
   selectedProfile,
   status,
   statusAnnouncement,
 }: {
   appVersion: string;
+  canDisconnect: boolean;
+  onDisconnect: () => void;
   selectedProfile: MudProfile | null;
   status: string;
   statusAnnouncement: string;
@@ -96,6 +84,15 @@ function StatusBar({
         >
           v{appVersion}
         </span>
+        {canDisconnect && (
+          <button
+            type='button'
+            className={styles.disconnectButton}
+            onClick={onDisconnect}
+          >
+            Disconnect
+          </button>
+        )}
       </span>
     </div>
   );
@@ -192,6 +189,16 @@ function CommandInputBar({
   );
 }
 
+function Toast({ message }: { message: string | null }) {
+  if (!message) return null;
+
+  return (
+    <div className={styles.toast} role='status' aria-live='polite'>
+      {message}
+    </div>
+  );
+}
+
 function MudClientApp() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState('Disconnected');
@@ -203,7 +210,9 @@ function MudClientApp() {
   const [aliases, setAliases] = useState<Alias[]>([]);
   const [triggers, setTriggers] = useState<Trigger[]>([]);
   const [scripts, setScripts] = useState<Script[]>([]);
-  const { variables, setVariables, settings } = useAppContext();
+  const [profiles, setProfiles] = useState<MudProfile[]>([]);
+  const [profileDataMap, setProfileDataMap] = useState<ProfileDataMap>({});
+  const { variables, setVariables, settings, setSettings } = useAppContext();
   const [commandEngine, setCommandEngine] = useState<CommandEngine | null>(
     null
   );
@@ -211,6 +220,8 @@ function MudClientApp() {
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [triggersEnabled, setTriggersEnabled] = useState(true);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const terminal = useXtermTerminal(settings);
   const viewportHeight = useViewportHeight({
     inputRef,
@@ -238,6 +249,28 @@ function MudClientApp() {
   });
 
   const appVersion = import.meta.env.VITE_APP_VERSION || '0.0.0.0-dev';
+  const fallbackProfileDataId = selectedProfile?.id || profiles[0]?.id || '';
+  const selectedDataSourceExists = profiles.some(
+    profile => profile.id === settings.profileDataSourceId
+  );
+  const activeProfileDataId =
+    settings.profileDataSourceId && selectedDataSourceExists
+      ? settings.profileDataSourceId
+      : fallbackProfileDataId;
+  const activeProfileDataName =
+    profiles.find(profile => profile.id === activeProfileDataId)?.name ||
+    'current profile';
+
+  const showToast = useCallback((message: string) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    setToastMessage(message);
+    toastTimerRef.current = setTimeout(() => {
+      toastTimerRef.current = null;
+      setToastMessage(null);
+    }, 3000);
+  }, []);
 
   const announceConnection = useCallback(
     (message: string) => {
@@ -247,29 +280,202 @@ function MudClientApp() {
     },
     [settings.announceConnectionStatus]
   );
+  const announceConnectionRef = useLatestRef(announceConnection);
+  const ingestGameChunkRef = useLatestRef(ingestGameChunk);
+  const resetStreamBuffersRef = useLatestRef(resetStreamBuffers);
 
   const handleVariableSet = useCallback(
     (name: string, value: string) => {
       setVariables(prev => {
         const existingIndex = prev.findIndex(v => v.name === name);
-        if (existingIndex < 0) {
-          return [...prev, { name, value, description: '' }];
-        }
+        const updated =
+          existingIndex < 0
+            ? [...prev, { name, value, description: '' }]
+            : prev.map((variable, index) =>
+                index === existingIndex ? { ...variable, value } : variable
+              );
 
-        const updated = [...prev];
-        updated[existingIndex] = { ...updated[existingIndex], value };
+        if (activeProfileDataId) {
+          setProfileDataMap(current => {
+            const next = updateProfileData(current, activeProfileDataId, {
+              variables: updated,
+            });
+            saveProfileDataMap(next);
+            return next;
+          });
+        }
         return updated;
       });
     },
-    [setVariables]
+    [activeProfileDataId, setVariables]
   );
 
-  useEffect(() => {
-    const storedAutomation = loadStoredAutomation();
-    setAliases(storedAutomation.aliases);
-    setTriggers(storedAutomation.triggers);
-    setScripts(storedAutomation.scripts);
+  const saveActiveProfileData = useCallback(
+    (data: {
+      aliases?: Alias[];
+      triggers?: Trigger[];
+      scripts?: Script[];
+      variables?: Variable[];
+    }) => {
+      if (!activeProfileDataId) return;
+
+      setProfileDataMap(prev => {
+        const updated = updateProfileData(prev, activeProfileDataId, data);
+        saveProfileDataMap(updated);
+        return updated;
+      });
+    },
+    [activeProfileDataId]
+  );
+
+  const handleAliasesChange = useCallback(
+    (updated: Alias[]) => {
+      setAliases(updated);
+      saveActiveProfileData({ aliases: updated });
+    },
+    [saveActiveProfileData]
+  );
+
+  const handleTriggersChange = useCallback(
+    (updated: Trigger[]) => {
+      setTriggers(updated);
+      saveActiveProfileData({ triggers: updated });
+    },
+    [saveActiveProfileData]
+  );
+
+  const handleScriptsChange = useCallback(
+    (updated: Script[]) => {
+      setScripts(updated);
+      saveActiveProfileData({ scripts: updated });
+    },
+    [saveActiveProfileData]
+  );
+
+  const handleVariablesChange = useCallback(
+    (updated: Variable[]) => {
+      setVariables(updated);
+      saveActiveProfileData({ variables: updated });
+    },
+    [saveActiveProfileData, setVariables]
+  );
+
+  const handleClearProfileData = useCallback(() => {
+    if (!activeProfileDataId) return;
+
+    setProfileDataMap(prev => {
+      const updated = updateProfileData(prev, activeProfileDataId, {
+        aliases: [],
+        triggers: [],
+        scripts: [],
+        variables: [],
+      });
+      saveProfileDataMap(updated);
+      return updated;
+    });
+    showToast(`Cleared data for ${activeProfileDataName}.`);
+  }, [activeProfileDataId, activeProfileDataName, showToast]);
+
+  const handleDataImport = useCallback(
+    (data: MudData) => {
+      DataManager.saveDataToStorage(data);
+      const loadedProfiles = loadProfiles();
+      setProfiles(loadedProfiles);
+      setProfileDataMap(loadProfileDataMap(loadedProfiles));
+      setSettings(prev => ({ ...prev, ...data.mud_settings }));
+    },
+    [setSettings]
+  );
+
+  const handleProfileDataSourceChange = useCallback(
+    (profileId: string) => {
+      setSettings(prev => ({ ...prev, profileDataSourceId: profileId }));
+
+      if (!profileId) {
+        showToast('Profile data source switched to connected profile.');
+        return;
+      }
+
+      const profileName =
+        profiles.find(profile => profile.id === profileId)?.name ||
+        '(unnamed)';
+      showToast(`Profile data source switched to ${profileName}.`);
+    },
+    [profiles, setSettings, showToast]
+  );
+
+  const handleProfilesChange = useCallback((updatedProfiles: MudProfile[]) => {
+    setProfiles(updatedProfiles);
+    saveProfiles(updatedProfiles);
+    setProfileDataMap(prev => {
+      const next: ProfileDataMap = {};
+      for (const profile of updatedProfiles) {
+        next[profile.id] = prev[profile.id] || emptyProfileData();
+      }
+      saveProfileDataMap(next);
+      return next;
+    });
   }, []);
+
+  const handleProfileConnect = useCallback(
+    (profile: MudProfile) => {
+      setSettings(prev => ({
+        ...prev,
+        profileDataSourceId: profile.id,
+      }));
+      setSelectedProfile(profile);
+    },
+    [setSettings]
+  );
+
+  const handleDisconnect = useCallback(() => {
+    if (!selectedProfile && !wsManager) return;
+
+    setSelectedProfile(null);
+    setWsManager(null);
+    setStatus('Disconnected');
+    setCanSend(false);
+    resetStreamBuffers();
+    terminal.write(formatSystemMessageForTerminal('[INFO] Disconnected'));
+    announceConnection('Disconnected');
+    document.title = 'Swiss Mud Client';
+  }, [
+    selectedProfile,
+    wsManager,
+    resetStreamBuffers,
+    terminal,
+    announceConnection,
+  ]);
+
+  useEffect(() => {
+    const loadedProfiles = loadProfiles();
+    setProfiles(loadedProfiles);
+    setProfileDataMap(loadProfileDataMap(loadedProfiles));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeProfileDataId) {
+      setAliases([]);
+      setTriggers([]);
+      setScripts([]);
+      setVariables([]);
+      return;
+    }
+
+    const data = getProfileData(profileDataMap, activeProfileDataId);
+    setAliases(data.aliases);
+    setTriggers(data.triggers);
+    setScripts(data.scripts);
+    setVariables(data.variables);
+  }, [activeProfileDataId, profileDataMap, setVariables]);
 
   useEffect(() => {
     setCommandEngine(
@@ -342,36 +548,37 @@ function MudClientApp() {
   useEffect(() => {
     if (!selectedProfile) return;
 
+    const resetOnCleanup = resetStreamBuffersRef.current;
     const manager = new WebSocketManager({
       onOpen: () => {
-        resetStreamBuffers();
+        resetStreamBuffersRef.current();
         setStatus('Connected');
         setCanSend(false);
         inputRef.current?.focus();
       },
       onClose: event => {
-        resetStreamBuffers();
+        resetStreamBuffersRef.current();
         const closeMessage = formatWebSocketClose(event);
         setStatus(`Disconnected (${event.code})`);
         setCanSend(false);
         terminal.write(formatSystemMessageForTerminal(closeMessage));
-        announceConnection('Disconnected');
+        announceConnectionRef.current('Disconnected');
       },
       onError: () => {
         setStatus('Error occurred');
         terminal.write(
           formatSystemMessageForTerminal('[ERROR] WebSocket error occurred')
         );
-        announceConnection('Connection error');
+        announceConnectionRef.current('Connection error');
       },
       onMessage: (data: string) => {
         terminal.write(htmlChunkToTerminalText(data));
-        ingestGameChunk(data);
+        ingestGameChunkRef.current(data);
       },
       onConnected: () => {
         setCanSend(true);
         if (selectedProfile) {
-          announceConnection(`Connected to ${selectedProfile.name}`);
+          announceConnectionRef.current(`Connected to ${selectedProfile.name}`);
           document.title = `${selectedProfile.name} - Swiss Mud Client`;
         }
       },
@@ -382,15 +589,15 @@ function MudClientApp() {
     setWebSocketManager(manager);
 
     return () => {
-      resetStreamBuffers();
+      resetOnCleanup();
       manager.disconnect();
       document.title = 'Swiss Mud Client';
     };
   }, [
     selectedProfile,
-    resetStreamBuffers,
-    ingestGameChunk,
-    announceConnection,
+    resetStreamBuffersRef,
+    ingestGameChunkRef,
+    announceConnectionRef,
     terminal,
   ]);
 
@@ -457,16 +664,28 @@ function MudClientApp() {
 
       <header>
         <Menu
-          onProfileConnect={setSelectedProfile}
+          onProfileConnect={handleProfileConnect}
+          onClearProfileData={handleClearProfileData}
+          onDataImport={handleDataImport}
+          onProfileDataSourceChange={handleProfileDataSourceChange}
+          onProfilesChange={handleProfilesChange}
+          onToast={showToast}
+          activeProfileDataName={activeProfileDataName}
           aliases={aliases}
-          setAliases={setAliases}
+          canClearProfileData={Boolean(activeProfileDataId)}
+          profiles={profiles}
+          setAliases={handleAliasesChange}
           triggers={triggers}
-          setTriggers={setTriggers}
+          setTriggers={handleTriggersChange}
           scripts={scripts}
-          setScripts={setScripts}
+          setScripts={handleScriptsChange}
+          variables={variables}
+          setVariables={handleVariablesChange}
         />
         <StatusBar
           appVersion={appVersion}
+          canDisconnect={selectedProfile !== null || wsManager !== null}
+          onDisconnect={handleDisconnect}
           selectedProfile={selectedProfile}
           status={status}
           statusAnnouncement={statusAnnouncement}
@@ -490,6 +709,7 @@ function MudClientApp() {
           triggersEnabled={triggersEnabled}
         />
       </main>
+      <Toast message={toastMessage} />
     </div>
   );
 }

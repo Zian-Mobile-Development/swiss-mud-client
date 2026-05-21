@@ -21,18 +21,7 @@ export function AppContextProvider({
   const [variables, setVariables] = useState<Variable[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
-  // Load variables from localStorage on mount
   useEffect(() => {
-    const storedVariables = localStorage.getItem('mud_variables');
-    if (storedVariables) {
-      try {
-        const parsedVariables = JSON.parse(storedVariables);
-        setVariables(parsedVariables);
-      } catch (e) {
-        console.error('Failed to parse variables:', e);
-      }
-    }
-
     const storeSettings = localStorage.getItem('mud_settings');
     if (storeSettings) {
       try {
@@ -47,12 +36,6 @@ export function AppContextProvider({
       }
     }
   }, []);
-
-  useEffect(() => {
-    if (variables.length > 0) {
-      localStorage.setItem('mud_variables', JSON.stringify(variables));
-    }
-  }, [variables]);
 
   useEffect(() => {
     if (settings) {

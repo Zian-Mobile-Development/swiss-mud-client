@@ -2,13 +2,15 @@
 // View for the settings.
 
 import React from 'react';
-import type { Settings, ScreenReaderVerbosity } from '../../types';
+import type { MudProfile, Settings, ScreenReaderVerbosity } from '../../types';
 import styles from './styles.module.css';
 import commonStyles from '../../styles/common.module.css';
 
 interface SettingsViewProps {
+  profiles: MudProfile[];
   settings: Settings;
   onChange: (settings: Settings) => void;
+  onProfileDataSourceChange: (profileId: string) => void;
 }
 
 const FONT_FAMILIES = [
@@ -93,7 +95,12 @@ function ToggleRow({
   );
 }
 
-export function SettingsView({ settings, onChange }: SettingsViewProps) {
+export function SettingsView({
+  profiles,
+  settings,
+  onChange,
+  onProfileDataSourceChange,
+}: SettingsViewProps) {
   const handleToggle = (
     key:
       | 'highlightInputOnCommand'
@@ -121,6 +128,23 @@ export function SettingsView({ settings, onChange }: SettingsViewProps) {
           checked={settings.showCommandInOutput}
           onChange={() => handleToggle('showCommandInOutput')}
         />
+        <div className={styles.settingItem}>
+          <label>
+            Profile data source
+            <select
+              value={settings.profileDataSourceId}
+              onChange={e => onProfileDataSourceChange(e.target.value)}
+              style={{ marginLeft: 8 }}
+            >
+              <option value=''>Use connected profile</option>
+              {profiles.map(profile => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.name || '(unnamed)'}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <div className={styles.settingItem}>
           <label>
             Output font family

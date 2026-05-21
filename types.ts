@@ -13,6 +13,21 @@ export interface Variable {
   value: string;
 }
 
+export interface MudProfile {
+  id: string;
+  name: string;
+  address: string;
+  port: number;
+  encoding: string;
+}
+
+export interface ProfileData {
+  aliases: Alias[];
+  triggers: Trigger[];
+  scripts: Script[];
+  variables: Variable[];
+}
+
 export interface Command {
   type: 'command' | 'wait';
   content: string;
@@ -30,6 +45,7 @@ export interface Settings {
   screenReaderVerbosity: ScreenReaderVerbosity;
   announceConnectionStatus: boolean;
   announcePromptLines: boolean;
+  profileDataSourceId: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -41,6 +57,7 @@ export const DEFAULT_SETTINGS: Settings = {
   screenReaderVerbosity: 'lines',
   announceConnectionStatus: true,
   announcePromptLines: true,
+  profileDataSourceId: '',
 };
 
 export interface Script {

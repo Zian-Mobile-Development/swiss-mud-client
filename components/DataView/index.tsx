@@ -7,10 +7,20 @@ import commonStyles from '../../styles/common.module.css';
 import { DataManager, type MudData } from '../../managers/DataManager';
 
 interface DataViewProps {
+  activeProfileName: string;
+  canClearProfileData: boolean;
+  onClearProfileData: () => void;
   onImport: (data: MudData) => void;
+  onToast: (message: string) => void;
 }
 
-const DataView: React.FC<DataViewProps> = ({ onImport }) => {
+const DataView: React.FC<DataViewProps> = ({
+  activeProfileName,
+  canClearProfileData,
+  onClearProfileData,
+  onImport,
+  onToast,
+}) => {
   const [importText, setImportText] = useState('');
   const [status, setStatus] = useState<{
     type: 'error' | 'success';
@@ -45,7 +55,7 @@ const DataView: React.FC<DataViewProps> = ({ onImport }) => {
     try {
       const data = await DataManager.importFromFile(file);
       onImport(data);
-      alert('Data imported successfully!');
+      onToast('Data imported successfully.');
     } catch (err) {
       console.error('Failed to import from file:', err);
       alert(
@@ -59,15 +69,39 @@ const DataView: React.FC<DataViewProps> = ({ onImport }) => {
       const data = DataManager.importFromText(importText);
       onImport(data);
       setImportText('');
-      setStatus({ type: 'success', message: 'Data imported successfully!' });
+      setStatus(null);
+      onToast('Data imported successfully.');
     } catch (err) {
       console.error('Failed to import from text:', err);
       setStatus({ type: 'error', message: 'Invalid JSON data' });
     }
   };
 
+  const handleClearProfileData = () => {
+    if (!canClearProfileData) return;
+    const confirmed = window.confirm(
+      `Clear all aliases, triggers, scripts, and variables under ${activeProfileName}?`
+    );
+    if (!confirmed) return;
+
+    onClearProfileData();
+  };
+
   return (
     <div className={styles.dataView}>
+      <div className={styles.dataSection}>
+        <h3>Profile Data</h3>
+        <div className={commonStyles.actions}>
+          <button
+            type='button'
+            onClick={handleClearProfileData}
+            disabled={!canClearProfileData}
+          >
+            Clear Current Profile Data
+          </button>
+        </div>
+      </div>
+
       <div className={styles.dataSection}>
         <h3>Export Data</h3>
         <div className={commonStyles.actions}>

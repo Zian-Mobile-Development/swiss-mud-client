@@ -1,23 +1,19 @@
 // components/ConnectView/index.tsx
 // View for the connect.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import commonStyles from '../../styles/common.module.css';
 import classNames from 'classnames';
-
-export interface MudProfile {
-  name: string;
-  address: string;
-  port: number;
-  encoding: string;
-}
+import type { MudProfile } from '../../types';
+import { createProfileId, saveProfiles } from '../../utils/ProfileDataStore';
 
 interface ConnectViewProps {
+  profiles: MudProfile[];
   onConnect: (profile: MudProfile) => void;
+  onProfilesChange: (profiles: MudProfile[]) => void;
   saveRef?: React.RefObject<{ save: () => void } | null>;
 }
 
-const STORAGE_KEY = 'mud_profiles';
 const ENCODINGS = [
   { value: 'utf8', label: 'UTF-8 (default)' },
   { value: 'ascii', label: 'ASCII' },
@@ -25,26 +21,31 @@ const ENCODINGS = [
   { value: 'big5', label: 'Big5' },
 ];
 const emptyProfile: MudProfile = {
+  id: '',
   name: '',
   address: '',
   port: 23,
   encoding: 'utf8',
 };
 
-export default function ConnectView({ onConnect, saveRef }: ConnectViewProps) {
-  const [profiles, setProfiles] = useState<MudProfile[]>([]);
+export default function ConnectView({
+  profiles,
+  onConnect,
+  onProfilesChange,
+  saveRef,
+}: ConnectViewProps) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [editBuffer, setEditBuffer] = useState<MudProfile | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  // Load profiles only once on mount
   useEffect(() => {
-    const loadedProfiles = loadProfiles();
-    setProfiles(loadedProfiles);
-    if (loadedProfiles.length > 0) {
+    if (profiles.length > 0 && selectedIdx === null) {
       setSelectedIdx(0);
     }
-  }, []);
+    if (profiles.length === 0) {
+      setSelectedIdx(null);
+    }
+  }, [profiles.length, selectedIdx]);
 
   // When selectedIdx changes, update editBuffer
   useEffect(() => {
@@ -72,9 +73,10 @@ export default function ConnectView({ onConnect, saveRef }: ConnectViewProps) {
   };
 
   const handleAdd = () => {
-    const newProfiles = [...profiles, { ...emptyProfile }];
-    setProfiles(newProfiles);
-    setEditBuffer({ ...emptyProfile });
+    const newProfile = { ...emptyProfile, id: createProfileId() };
+    const newProfiles = [...profiles, newProfile];
+    onProfilesChange(newProfiles);
+    setEditBuffer({ ...newProfile });
     setSelectedIdx(newProfiles.length - 1);
     setTimeout(() => nameInputRef.current?.focus(), 0);
   };
@@ -83,12 +85,12 @@ export default function ConnectView({ onConnect, saveRef }: ConnectViewProps) {
     if (selectedIdx === null) return;
     if (!window.confirm('Delete this profile?')) return;
     const newProfiles = profiles.filter((_, idx) => idx !== selectedIdx);
-    setProfiles(newProfiles);
     saveProfiles(newProfiles);
+    onProfilesChange(newProfiles);
     setSelectedIdx(newProfiles.length > 0 ? 0 : null);
   };
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (selectedIdx === null || !editBuffer) return;
     if (
       !editBuffer.name.trim() ||
@@ -101,26 +103,29 @@ export default function ConnectView({ onConnect, saveRef }: ConnectViewProps) {
     const updated = profiles.map((profile, idx) =>
       idx === selectedIdx ? { ...editBuffer } : profile
     );
-    setProfiles(updated);
     saveProfiles(updated);
-  };
+    onProfilesChange(updated);
+  }, [editBuffer, onProfilesChange, profiles, selectedIdx]);
 
   const handleConnect = () => {
-    if (!editBuffer) return;
+    if (selectedIdx === null || !editBuffer) return;
     if (
       !editBuffer.name.trim() ||
       !editBuffer.address.trim() ||
       !editBuffer.port.toString().trim()
     )
       return;
-    onConnect(editBuffer);
 
-    //Save profile
-    const updated = profiles.map((profile, idx) =>
-      idx === selectedIdx ? { ...editBuffer } : profile
-    );
-    setProfiles(updated);
+    const connectedProfile = { ...editBuffer };
+    const updated = [
+      connectedProfile,
+      ...profiles.filter((_, idx) => idx !== selectedIdx),
+    ];
+
+    setSelectedIdx(0);
     saveProfiles(updated);
+    onProfilesChange(updated);
+    onConnect(connectedProfile);
   };
 
   // Check if there are unsaved changes
@@ -135,21 +140,6 @@ export default function ConnectView({ onConnect, saveRef }: ConnectViewProps) {
       saveRef.current = { save: handleSave };
     }
   }, [handleSave, saveRef]);
-
-  function loadProfiles(): MudProfile[] {
-    try {
-      const data = localStorage.getItem(STORAGE_KEY);
-      return data ? JSON.parse(data) : [];
-    } catch (error) {
-      console.error('Error loading profiles', error);
-      return [];
-    }
-  }
-
-  function saveProfiles(profiles: MudProfile[]) {
-    const profilesJsonStr = JSON.stringify(profiles);
-    localStorage.setItem(STORAGE_KEY, profilesJsonStr);
-  }
 
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent<HTMLLIElement>, idx: number) => {
@@ -181,8 +171,8 @@ export default function ConnectView({ onConnect, saveRef }: ConnectViewProps) {
     const [movedItem] = updated.splice(sourceIdx, 1);
     updated.splice(targetIdx, 0, movedItem);
 
-    setProfiles(updated);
     saveProfiles(updated);
+    onProfilesChange(updated);
     setSelectedIdx(targetIdx);
   };
 

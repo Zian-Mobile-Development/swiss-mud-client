@@ -3,14 +3,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import styles from './styles.module.css';
-import type { Alias, Trigger, Script } from '../../types';
-import ConnectView, { type MudProfile } from '../ConnectView';
+import type { Alias, Trigger, Script, MudProfile, Variable } from '../../types';
+import ConnectView from '../ConnectView';
 import AliasView from '../AliasView';
 import TriggerView from '../TriggerView';
 import VariableView from '../VariableView';
 import DataView from '../DataView';
 import { SettingsView } from '../SettingsView';
-import { DataManager, type MudData } from '../../managers/DataManager';
+import type { MudData } from '../../managers/DataManager';
 import { useAppContext } from '../../contexts/AppContext';
 import ScriptView from '../ScriptView';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
@@ -114,23 +114,43 @@ function Popup({
 
 export function Menu({
   onProfileConnect,
+  onClearProfileData,
+  onDataImport,
+  onProfileDataSourceChange,
+  onProfilesChange,
+  onToast,
+  activeProfileDataName,
   aliases,
+  canClearProfileData,
+  profiles,
   setAliases,
   triggers,
   setTriggers,
   scripts,
   setScripts,
+  variables,
+  setVariables,
 }: {
   onProfileConnect?: (profile: MudProfile) => void;
+  onClearProfileData: () => void;
+  onDataImport: (data: MudData) => void;
+  onProfileDataSourceChange: (profileId: string) => void;
+  onProfilesChange: (profiles: MudProfile[]) => void;
+  onToast: (message: string) => void;
+  activeProfileDataName: string;
+  canClearProfileData: boolean;
   aliases: Alias[];
-  setAliases: React.Dispatch<React.SetStateAction<Alias[]>>;
+  profiles: MudProfile[];
+  setAliases: (aliases: Alias[]) => void;
   triggers: Trigger[];
-  setTriggers: React.Dispatch<React.SetStateAction<Trigger[]>>;
+  setTriggers: (triggers: Trigger[]) => void;
   scripts: Script[];
-  setScripts: React.Dispatch<React.SetStateAction<Script[]>>;
+  setScripts: (scripts: Script[]) => void;
+  variables: Variable[];
+  setVariables: (variables: Variable[]) => void;
 }) {
   const [activePopup, setActivePopup] = useState<string | null>(null);
-  const { setVariables, settings, setSettings } = useAppContext();
+  const { settings, setSettings } = useAppContext();
   const lastMenuButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const aliasSaveRef = useRef<{ save: () => void } | null>(null);
@@ -182,15 +202,6 @@ export function Menu({
     lastMenuButtonRef.current?.focus();
   };
 
-  const handleDataImport = (data: MudData) => {
-    DataManager.saveDataToStorage(data);
-    setVariables(data.mud_variables);
-    setAliases(data.mud_aliases);
-    if (data.mud_triggers) {
-      setTriggers(data.mud_triggers);
-    }
-  };
-
   return (
     <nav className={styles.menu} aria-label='Main menu'>
       {menuButtons.map(button => (
@@ -218,7 +229,9 @@ export function Menu({
         activePopup={activePopup}
       >
         <ConnectView
+          profiles={profiles}
           onConnect={handleProfileConnect}
+          onProfilesChange={onProfilesChange}
           saveRef={connectSaveRef}
         />
       </Popup>
@@ -272,7 +285,11 @@ export function Menu({
         setActivePopup={setActivePopup}
         activePopup={activePopup}
       >
-        <VariableView saveRef={variableSaveRef} />
+        <VariableView
+          variables={variables}
+          onChange={setVariables}
+          saveRef={variableSaveRef}
+        />
       </Popup>
 
       <Popup
@@ -282,7 +299,13 @@ export function Menu({
         setActivePopup={setActivePopup}
         activePopup={activePopup}
       >
-        <DataView onImport={handleDataImport} />
+        <DataView
+          activeProfileName={activeProfileDataName}
+          canClearProfileData={canClearProfileData}
+          onClearProfileData={onClearProfileData}
+          onImport={onDataImport}
+          onToast={onToast}
+        />
       </Popup>
 
       <Popup
@@ -292,7 +315,12 @@ export function Menu({
         setActivePopup={setActivePopup}
         activePopup={activePopup}
       >
-        <SettingsView settings={settings} onChange={setSettings} />
+        <SettingsView
+          settings={settings}
+          onChange={setSettings}
+          profiles={profiles}
+          onProfileDataSourceChange={onProfileDataSourceChange}
+        />
       </Popup>
     </nav>
   );
