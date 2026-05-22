@@ -4,6 +4,7 @@ import { AliasesGuide } from './pages/AliasesGuide';
 import { ScriptsGuide } from './pages/ScriptsGuide';
 import { TriggersGuide } from './pages/TriggersGuide';
 import { VariablesGuide } from './pages/VariablesGuide';
+import { CommandHelpersGuide } from './pages/CommandHelpersGuide';
 
 export const wikiEntries: WikiEntry[] = [
   {
@@ -64,16 +65,8 @@ export const wikiEntries: WikiEntry[] = [
     title: 'Command Helpers',
     subtitle: 'Reference helper functions available to aliases and triggers.',
     bodyTitle: 'Command Helpers',
-    body: 'Command helper documentation will be added here.',
-  },
-  {
-    slug: 'examples',
-    label: 'Examples',
-    navType: 'page',
-    title: 'Examples',
-    subtitle: 'Copyable recipes for common MUD client automation.',
-    bodyTitle: 'Examples',
-    body: 'Example recipes will be added here.',
+    body: 'Reference for helper functions available in alias, trigger, and script command code.',
+    content: <CommandHelpersGuide />,
   },
 ];
 
@@ -82,7 +75,7 @@ export const guideLinks = wikiEntries.filter(entry =>
 );
 
 export const additionalLinks = wikiEntries.filter(entry =>
-  ['scripts', 'command-helpers', 'examples'].includes(entry.slug)
+  ['scripts', 'command-helpers'].includes(entry.slug)
 );
 
 export function getActiveEntry(path: string): WikiEntry {

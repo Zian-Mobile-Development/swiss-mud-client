@@ -63,18 +63,24 @@ export function WikiPage({ path }: WikiPageProps) {
           </label>
         </header>
 
-        <div className={styles.breadcrumbBar}>
-          <Home size={14} aria-hidden />
-          <span>/</span>
-          <strong>{activeEntry.slug}</strong>
-        </div>
+        <nav className={styles.breadcrumbBar} aria-label='Breadcrumb'>
+          <a href='/wiki' className={styles.breadcrumbHome} aria-label='Wiki home'>
+            <Home size={14} aria-hidden />
+          </a>
+          {!isHome && (
+            <>
+              <span className={styles.breadcrumbSep} aria-hidden>
+                /
+              </span>
+              <span className={styles.breadcrumbCurrent}>{activeEntry.label}</span>
+            </>
+          )}
+          {isHome && (
+            <span className={styles.breadcrumbCurrent}>{activeEntry.label}</span>
+          )}
+        </nav>
 
         <main className={styles.content}>
-          <section className={styles.pageTitle}>
-            <h1>{activeEntry.title}</h1>
-            <p>{activeEntry.subtitle}</p>
-          </section>
-
           <article className={styles.article}>
             {activeEntry.content ?? (
               <section>
