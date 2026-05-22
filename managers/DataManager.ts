@@ -124,8 +124,12 @@ function isProfileDataMap(value: unknown): value is ProfileDataMap {
   return Object.values(value as Record<string, Partial<ProfileData>>).every(
     data =>
       (!data.aliases || Array.isArray(data.aliases)) &&
+      (!data.aliasFolders || Array.isArray(data.aliasFolders)) &&
       (!data.triggers || Array.isArray(data.triggers)) &&
+      (!data.triggerFolders || Array.isArray(data.triggerFolders)) &&
       (!data.scripts || Array.isArray(data.scripts)) &&
-      (!data.variables || Array.isArray(data.variables))
+      (!data.scriptFolders || Array.isArray(data.scriptFolders)) &&
+      (!data.variables || Array.isArray(data.variables)) &&
+      (!data.variableFolders || Array.isArray(data.variableFolders))
   );
 }

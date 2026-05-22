@@ -1,66 +1,91 @@
 // components/TriggerView/index.tsx
 // View for the triggers.
 
-import React, { useCallback, useState, useEffect } from 'react';
-import type { Trigger } from '../../types';
+import React, { useCallback, useEffect, useState } from 'react';
+import type { ListFolder, Trigger } from '../../types';
 import commonStyles from '../../styles/common.module.css';
 import Editor from '@monaco-editor/react';
 import { editorOptionsWithLabel } from '../../config/EditorOptions';
 import { IconLabel } from '../icons/IconLabel';
-import { GripVertical, Plus, Save, Trash2 } from 'lucide-react';
+import { GripVertical, Save, Trash2 } from 'lucide-react';
+import { GroupedSidebar } from '../GroupedSidebar/GroupedSidebar';
+import { FolderSelect } from '../FolderSelect';
+import { createListItemId } from '../../utils/listFolders';
 
 interface TriggerViewProps {
   triggers: Trigger[];
-  onChange: (triggers: Trigger[]) => void;
+  folders: ListFolder[];
+  onTriggersChange: (triggers: Trigger[]) => void;
+  onFoldersChange: (folders: ListFolder[]) => void;
   saveRef?: React.RefObject<{ save: () => void } | null>;
 }
 
-const emptyTrigger: Trigger = {
+const createEmptyTrigger = (): Trigger => ({
+  id: createListItemId(),
   name: '',
   pattern: '',
   command: '',
   enabled: true,
-};
+  folderId: null,
+});
 
 const TriggerView: React.FC<TriggerViewProps> = ({
   triggers,
-  onChange,
+  folders,
+  onTriggersChange,
+  onFoldersChange,
   saveRef,
 }) => {
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(
-    triggers.length > 0 ? 0 : null
+  const [selectedId, setSelectedId] = useState<string | null>(
+    triggers[0]?.id ?? null
   );
   const [editBuffer, setEditBuffer] = useState<Trigger | null>(null);
   const [localTriggers, setLocalTriggers] = useState<Trigger[]>(triggers);
+  const [localFolders, setLocalFolders] = useState<ListFolder[]>(folders);
 
-  // Helper function to save triggers
-  const saveTriggers = useCallback((updated: Trigger[]) => {
-    setLocalTriggers(updated);
-    onChange(updated);
-  }, [onChange]);
+  const saveTriggers = useCallback(
+    (updated: Trigger[]) => {
+      setLocalTriggers(updated);
+      onTriggersChange(updated);
+    },
+    [onTriggersChange]
+  );
+
+  const saveFolders = useCallback(
+    (updated: ListFolder[]) => {
+      setLocalFolders(updated);
+      onFoldersChange(updated);
+    },
+    [onFoldersChange]
+  );
 
   useEffect(() => {
     setLocalTriggers(triggers);
   }, [triggers]);
 
-  // When selectedIdx changes, update editBuffer
   useEffect(() => {
-    if (selectedIdx !== null && localTriggers[selectedIdx]) {
-      setEditBuffer({ ...localTriggers[selectedIdx] });
-    } else {
-      setEditBuffer(null);
-    }
-  }, [selectedIdx, localTriggers]);
+    setLocalFolders(folders);
+  }, [folders]);
 
-  // Add new trigger and select it
+  useEffect(() => {
+    if (selectedId && !localTriggers.some(trigger => trigger.id === selectedId)) {
+      setSelectedId(localTriggers[0]?.id ?? null);
+    }
+  }, [localTriggers, selectedId]);
+
+  useEffect(() => {
+    const selected = localTriggers.find(trigger => trigger.id === selectedId);
+    setEditBuffer(selected ? { ...selected } : null);
+  }, [selectedId, localTriggers]);
+
   const handleAdd = () => {
-    const newTriggers = [{ ...emptyTrigger }, ...localTriggers];
-    setLocalTriggers(newTriggers);
-    setEditBuffer({ ...emptyTrigger });
-    setSelectedIdx(0);
+    const trigger = createEmptyTrigger();
+    const updated = [trigger, ...localTriggers];
+    saveTriggers(updated);
+    setEditBuffer({ ...trigger });
+    setSelectedId(trigger.id ?? null);
   };
 
-  // Update edit buffer inline
   const handleFieldChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -69,143 +94,84 @@ const TriggerView: React.FC<TriggerViewProps> = ({
     setEditBuffer({ ...editBuffer, [name]: value });
   };
 
-  // Save changes to selected trigger
   const handleSave = useCallback(() => {
-    if (selectedIdx === null || !editBuffer) return;
-    const updated = localTriggers.map((trigger, idx) =>
-      idx === selectedIdx ? { ...editBuffer } : trigger
+    if (!selectedId || !editBuffer) return;
+    saveTriggers(
+      localTriggers.map(trigger =>
+        trigger.id === selectedId ? { ...editBuffer } : trigger
+      )
     );
-    saveTriggers(updated);
-  }, [editBuffer, localTriggers, saveTriggers, selectedIdx]);
+  }, [editBuffer, localTriggers, saveTriggers, selectedId]);
 
-  // Expose save method to parent via ref
   useEffect(() => {
     if (saveRef) {
       saveRef.current = { save: handleSave };
     }
   }, [handleSave, saveRef]);
 
-  // Delete selected trigger
   const handleDelete = () => {
-    if (selectedIdx === null) return;
+    if (!selectedId) return;
     if (!window.confirm('Delete this trigger?')) return;
-    const newTriggers = localTriggers.filter((_, idx) => idx !== selectedIdx);
-    saveTriggers(newTriggers);
-    setSelectedIdx(newTriggers.length > 0 ? 0 : null);
-  };
-
-  // Select trigger
-  const handleSelect = (idx: number) => {
-    setSelectedIdx(idx);
-  };
-
-  // Check if there are unsaved changes
-  const hasUnsaved =
-    selectedIdx !== null &&
-    editBuffer &&
-    JSON.stringify(editBuffer) !== JSON.stringify(localTriggers[selectedIdx]);
-
-  const selected = editBuffer;
-
-  // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent<HTMLLIElement>, idx: number) => {
-    e.dataTransfer.setData('text/plain', idx.toString());
-    e.currentTarget.classList.add(commonStyles.dragging);
-  };
-
-  const handleDragEnd = (e: React.DragEvent<HTMLLIElement>) => {
-    e.currentTarget.classList.remove(commonStyles.dragging);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLLIElement>) => {
-    e.preventDefault();
-    e.currentTarget.classList.add(commonStyles.dragOver);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLLIElement>) => {
-    e.currentTarget.classList.remove(commonStyles.dragOver);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLLIElement>, targetIdx: number) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove(commonStyles.dragOver);
-
-    const sourceIdx = parseInt(e.dataTransfer.getData('text/plain'));
-    if (sourceIdx === targetIdx) return;
-
-    const updated = [...localTriggers];
-    const [movedItem] = updated.splice(sourceIdx, 1);
-    updated.splice(targetIdx, 0, movedItem);
-
+    const updated = localTriggers.filter(trigger => trigger.id !== selectedId);
     saveTriggers(updated);
-    setSelectedIdx(targetIdx);
+    setSelectedId(updated[0]?.id ?? null);
   };
+
+  const selected = localTriggers.find(trigger => trigger.id === selectedId);
+  const hasUnsaved =
+    selected &&
+    editBuffer &&
+    JSON.stringify(editBuffer) !== JSON.stringify(selected);
 
   return (
     <div className={commonStyles.viewContainer}>
-      <div className={commonStyles.sidebar}>
-        <button
-          type='button'
-          className={commonStyles.sidebarToolbarButton}
-          onClick={handleAdd}
-          aria-label='Add trigger'
-        >
-          <Plus size={20} aria-hidden />
-        </button>
-        <div className={commonStyles.sidebarList}>
-          <ul role='list' aria-label='Triggers'>
-          {localTriggers.map((trigger, index) => (
-            <li
-              key={index}
-              draggable
-              onDragStart={e => handleDragStart(e, index)}
-              onDragOver={handleDragOver}
-              onDrop={e => handleDrop(e, index)}
-              onDragEnd={handleDragEnd}
-              onDragLeave={handleDragLeave}
-            >
-              <button
-                type='button'
-                className={commonStyles.listRowButton}
-                onClick={() => handleSelect(index)}
-                aria-current={selectedIdx === index ? 'true' : undefined}
-              >
-                <span className={commonStyles.itemContent}>
-                  <GripVertical
-                    size={14}
-                    className={commonStyles.dragHandle}
-                    aria-hidden
-                  />
-                  <input
-                    type='checkbox'
-                    checked={trigger.enabled}
-                    aria-label={`Enable trigger ${trigger.name || 'unnamed'}`}
-                    onChange={e => {
-                    e.stopPropagation();
-                    const updated = localTriggers.map((t, i) =>
-                      i === index ? { ...t, enabled: e.target.checked } : t
-                    );
-                    saveTriggers(updated);
-                  }}
-                  onClick={e => e.stopPropagation()}
-                />
-                  <span>{trigger.name}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-          </ul>
-        </div>
-      </div>
-      {selected && (
+      <GroupedSidebar
+        items={localTriggers}
+        folders={localFolders}
+        selectedId={selectedId}
+        onSelectId={setSelectedId}
+        onItemsChange={saveTriggers}
+        onFoldersChange={saveFolders}
+        onAddItem={handleAdd}
+        listLabel='Triggers'
+        addItemAriaLabel='Add trigger'
+        addFolderAriaLabel='Add trigger folder'
+        getItemLabel={trigger => trigger.name}
+        renderItemExtra={(trigger, updateItem) => (
+          <>
+            <GripVertical
+              size={14}
+              className={commonStyles.dragHandle}
+              aria-hidden
+            />
+            <input
+              type='checkbox'
+              checked={trigger.enabled}
+              aria-label={`Enable trigger ${trigger.name || 'unnamed'}`}
+              onChange={e => {
+                e.stopPropagation();
+                updateItem({ enabled: e.target.checked });
+              }}
+              onClick={e => e.stopPropagation()}
+            />
+          </>
+        )}
+      />
+
+      {editBuffer && (
         <div className={commonStyles.detailsPanel}>
+          <FolderSelect
+            folders={localFolders}
+            value={editBuffer.folderId}
+            onChange={folderId => setEditBuffer({ ...editBuffer, folderId })}
+          />
           <div className={commonStyles.formGroup}>
             <label>
               Name
               <input
                 type='text'
                 name='name'
-                value={selected.name}
+                value={editBuffer.name}
                 onChange={handleFieldChange}
               />
             </label>
@@ -216,7 +182,7 @@ const TriggerView: React.FC<TriggerViewProps> = ({
               <input
                 type='text'
                 name='pattern'
-                value={selected.pattern}
+                value={editBuffer.pattern}
                 onChange={handleFieldChange}
               />
             </label>
@@ -227,11 +193,11 @@ const TriggerView: React.FC<TriggerViewProps> = ({
               <div className={commonStyles.editorContainer}>
                 <Editor
                   defaultLanguage='javascript'
-                  value={selected.command}
+                  value={editBuffer.command}
                   onChange={value => {
-                    if (editBuffer) {
-                      setEditBuffer({ ...editBuffer, command: value || '' });
-                    }
+                    setEditBuffer(current =>
+                      current ? { ...current, command: value || '' } : current
+                    );
                   }}
                   theme={editorOptionsWithLabel('Trigger command editor').theme}
                   options={editorOptionsWithLabel('Trigger command editor')}

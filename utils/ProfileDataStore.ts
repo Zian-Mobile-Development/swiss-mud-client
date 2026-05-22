@@ -6,6 +6,10 @@ import type {
   Trigger,
   Variable,
 } from '../types';
+import {
+  ensureListItemIds,
+  normalizeListFolders,
+} from './listFolders';
 
 export const PROFILE_STORAGE_KEY = 'mud_profiles';
 export const PROFILE_DATA_STORAGE_KEY = 'mud_profile_data';
@@ -14,9 +18,13 @@ export type ProfileDataMap = Record<string, ProfileData>;
 
 export const emptyProfileData = (): ProfileData => ({
   aliases: [],
+  aliasFolders: [],
   triggers: [],
+  triggerFolders: [],
   scripts: [],
+  scriptFolders: [],
   variables: [],
+  variableFolders: [],
 });
 
 export function createProfileId(): string {
@@ -94,28 +102,49 @@ export function updateProfileData(
 function normalizeProfileData(data?: Partial<ProfileData>): ProfileData {
   return {
     aliases: normalizePatterns(data?.aliases),
+    aliasFolders: normalizeListFolders(data?.aliasFolders),
     triggers: normalizePatterns(data?.triggers),
+    triggerFolders: normalizeListFolders(data?.triggerFolders),
     scripts: normalizeScripts(data?.scripts),
-    variables: Array.isArray(data?.variables) ? data.variables : [],
+    scriptFolders: normalizeListFolders(data?.scriptFolders),
+    variables: normalizeVariables(data?.variables),
+    variableFolders: normalizeListFolders(data?.variableFolders),
   };
 }
 
 function normalizePatterns<T extends Alias | Trigger>(patterns?: T[]): T[] {
-  return Array.isArray(patterns)
-    ? patterns.map(pattern => ({
-        ...pattern,
-        enabled: pattern.enabled ?? true,
-      }))
-    : [];
+  return ensureListItemIds(
+    Array.isArray(patterns)
+      ? patterns.map(pattern => ({
+          ...pattern,
+          folderId: pattern.folderId ?? null,
+          enabled: pattern.enabled ?? true,
+        }))
+      : []
+  );
 }
 
 function normalizeScripts(scripts?: Script[]): Script[] {
-  return Array.isArray(scripts)
-    ? scripts.map(script => ({
-        ...script,
-        enabled: script.enabled ?? true,
-      }))
-    : [];
+  return ensureListItemIds(
+    Array.isArray(scripts)
+      ? scripts.map(script => ({
+          ...script,
+          folderId: script.folderId ?? null,
+          enabled: script.enabled ?? true,
+        }))
+      : []
+  );
+}
+
+function normalizeVariables(variables?: Variable[]): Variable[] {
+  return ensureListItemIds(
+    Array.isArray(variables)
+      ? variables.map(variable => ({
+          ...variable,
+          folderId: variable.folderId ?? null,
+        }))
+      : []
+  );
 }
 
 function legacyProfileData(profileId?: string): ProfileDataMap {
@@ -123,9 +152,13 @@ function legacyProfileData(profileId?: string): ProfileDataMap {
 
   const data: ProfileData = {
     aliases: normalizePatterns(readJson<Alias[]>('mud_aliases', [])),
+    aliasFolders: [],
     triggers: normalizePatterns(readJson<Trigger[]>('mud_triggers', [])),
+    triggerFolders: [],
     scripts: normalizeScripts(readJson<Script[]>('mud_scripts', [])),
-    variables: readJson<Variable[]>('mud_variables', []),
+    scriptFolders: [],
+    variables: normalizeVariables(readJson<Variable[]>('mud_variables', [])),
+    variableFolders: [],
   };
 
   return { [profileId]: data };

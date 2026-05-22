@@ -3,7 +3,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import styles from './styles.module.css';
-import type { Alias, Trigger, Script, MudProfile, Variable } from '../../types';
+import type {
+  Alias,
+  ListFolder,
+  MudProfile,
+  Script,
+  Trigger,
+  Variable,
+} from '../../types';
 import ConnectView from '../ConnectView';
 import AliasView from '../AliasView';
 import TriggerView from '../TriggerView';
@@ -103,15 +110,23 @@ export function Menu({
   onToast,
   activeProfileDataName,
   aliases,
+  aliasFolders,
   canClearProfileData,
+  onAliasFoldersChange,
+  onAliasesChange,
+  onScriptFoldersChange,
+  onScriptsChange,
+  onTriggerFoldersChange,
+  onTriggersChange,
+  onVariableFoldersChange,
+  onVariablesChange,
   profiles,
-  setAliases,
-  triggers,
-  setTriggers,
+  scriptFolders,
   scripts,
-  setScripts,
+  triggerFolders,
+  triggers,
+  variableFolders,
   variables,
-  setVariables,
 }: {
   onProfileConnect?: (profile: MudProfile) => void;
   onClearProfileData: () => void;
@@ -122,14 +137,22 @@ export function Menu({
   activeProfileDataName: string;
   canClearProfileData: boolean;
   aliases: Alias[];
+  aliasFolders: ListFolder[];
+  onAliasesChange: (aliases: Alias[]) => void;
+  onAliasFoldersChange: (folders: ListFolder[]) => void;
   profiles: MudProfile[];
-  setAliases: (aliases: Alias[]) => void;
   triggers: Trigger[];
-  setTriggers: (triggers: Trigger[]) => void;
+  triggerFolders: ListFolder[];
+  onTriggersChange: (triggers: Trigger[]) => void;
+  onTriggerFoldersChange: (folders: ListFolder[]) => void;
   scripts: Script[];
-  setScripts: (scripts: Script[]) => void;
+  scriptFolders: ListFolder[];
+  onScriptsChange: (scripts: Script[]) => void;
+  onScriptFoldersChange: (folders: ListFolder[]) => void;
   variables: Variable[];
-  setVariables: (variables: Variable[]) => void;
+  variableFolders: ListFolder[];
+  onVariablesChange: (variables: Variable[]) => void;
+  onVariableFoldersChange: (folders: ListFolder[]) => void;
 }) {
   const [activePopup, setActivePopup] = useState<string | null>(null);
   const { settings, setSettings } = useAppContext();
@@ -224,7 +247,9 @@ export function Menu({
       >
         <TriggerView
           triggers={triggers}
-          onChange={setTriggers}
+          folders={triggerFolders}
+          onTriggersChange={onTriggersChange}
+          onFoldersChange={onTriggerFoldersChange}
           saveRef={triggerSaveRef}
         />
       </Popup>
@@ -238,7 +263,9 @@ export function Menu({
       >
         <AliasView
           aliases={aliases}
-          onChange={setAliases}
+          folders={aliasFolders}
+          onAliasesChange={onAliasesChange}
+          onFoldersChange={onAliasFoldersChange}
           saveRef={aliasSaveRef}
         />
       </Popup>
@@ -252,7 +279,9 @@ export function Menu({
       >
         <ScriptView
           scripts={scripts}
-          onChange={setScripts}
+          folders={scriptFolders}
+          onScriptsChange={onScriptsChange}
+          onFoldersChange={onScriptFoldersChange}
           saveRef={scriptSaveRef}
         />
       </Popup>
@@ -266,7 +295,9 @@ export function Menu({
       >
         <VariableView
           variables={variables}
-          onChange={setVariables}
+          folders={variableFolders}
+          onVariablesChange={onVariablesChange}
+          onFoldersChange={onVariableFoldersChange}
           saveRef={variableSaveRef}
         />
       </Popup>

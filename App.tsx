@@ -15,7 +15,16 @@ import classNames from 'classnames';
 import { CommandEngine } from './engines/CommandEngine';
 import { WebSocketManager } from './managers/WebSocketManager';
 import { DataManager, type MudData } from './managers/DataManager';
-import { Alias, Trigger, Settings, Script, MudProfile, Variable } from './types';
+import {
+  Alias,
+  ListFolder,
+  MudProfile,
+  Script,
+  Settings,
+  Trigger,
+  Variable,
+} from './types';
+import { createListItemId } from './utils/listFolders';
 import { handleCommandInput } from './utils/CommandHandler';
 import { setWebSocketManager, send } from './utils/CommandAction';
 import { useAppContext } from './contexts/AppContext';
@@ -214,8 +223,12 @@ function MudClientApp() {
   );
   const [canSend, setCanSend] = useState(false);
   const [aliases, setAliases] = useState<Alias[]>([]);
+  const [aliasFolders, setAliasFolders] = useState<ListFolder[]>([]);
   const [triggers, setTriggers] = useState<Trigger[]>([]);
+  const [triggerFolders, setTriggerFolders] = useState<ListFolder[]>([]);
   const [scripts, setScripts] = useState<Script[]>([]);
+  const [scriptFolders, setScriptFolders] = useState<ListFolder[]>([]);
+  const [variableFolders, setVariableFolders] = useState<ListFolder[]>([]);
   const [profiles, setProfiles] = useState<MudProfile[]>([]);
   const [profileDataMap, setProfileDataMap] = useState<ProfileDataMap>({});
   const { variables, setVariables, settings, setSettings } = useAppContext();
@@ -296,7 +309,15 @@ function MudClientApp() {
         const existingIndex = prev.findIndex(v => v.name === name);
         const updated =
           existingIndex < 0
-            ? [...prev, { name, value, description: '' }]
+            ? [
+                ...prev,
+                {
+                  id: createListItemId(),
+                  name,
+                  value,
+                  folderId: null,
+                },
+              ]
             : prev.map((variable, index) =>
                 index === existingIndex ? { ...variable, value } : variable
               );
@@ -319,9 +340,13 @@ function MudClientApp() {
   const saveActiveProfileData = useCallback(
     (data: {
       aliases?: Alias[];
+      aliasFolders?: ListFolder[];
       triggers?: Trigger[];
+      triggerFolders?: ListFolder[];
       scripts?: Script[];
+      scriptFolders?: ListFolder[];
       variables?: Variable[];
+      variableFolders?: ListFolder[];
     }) => {
       if (!activeProfileDataId) return;
 
@@ -342,10 +367,26 @@ function MudClientApp() {
     [saveActiveProfileData]
   );
 
+  const handleAliasFoldersChange = useCallback(
+    (updated: ListFolder[]) => {
+      setAliasFolders(updated);
+      saveActiveProfileData({ aliasFolders: updated });
+    },
+    [saveActiveProfileData]
+  );
+
   const handleTriggersChange = useCallback(
     (updated: Trigger[]) => {
       setTriggers(updated);
       saveActiveProfileData({ triggers: updated });
+    },
+    [saveActiveProfileData]
+  );
+
+  const handleTriggerFoldersChange = useCallback(
+    (updated: ListFolder[]) => {
+      setTriggerFolders(updated);
+      saveActiveProfileData({ triggerFolders: updated });
     },
     [saveActiveProfileData]
   );
@@ -358,6 +399,14 @@ function MudClientApp() {
     [saveActiveProfileData]
   );
 
+  const handleScriptFoldersChange = useCallback(
+    (updated: ListFolder[]) => {
+      setScriptFolders(updated);
+      saveActiveProfileData({ scriptFolders: updated });
+    },
+    [saveActiveProfileData]
+  );
+
   const handleVariablesChange = useCallback(
     (updated: Variable[]) => {
       setVariables(updated);
@@ -366,15 +415,27 @@ function MudClientApp() {
     [saveActiveProfileData, setVariables]
   );
 
+  const handleVariableFoldersChange = useCallback(
+    (updated: ListFolder[]) => {
+      setVariableFolders(updated);
+      saveActiveProfileData({ variableFolders: updated });
+    },
+    [saveActiveProfileData]
+  );
+
   const handleClearProfileData = useCallback(() => {
     if (!activeProfileDataId) return;
 
     setProfileDataMap(prev => {
       const updated = updateProfileData(prev, activeProfileDataId, {
         aliases: [],
+        aliasFolders: [],
         triggers: [],
+        triggerFolders: [],
         scripts: [],
+        scriptFolders: [],
         variables: [],
+        variableFolders: [],
       });
       saveProfileDataMap(updated);
       return updated;
@@ -470,17 +531,25 @@ function MudClientApp() {
   useEffect(() => {
     if (!activeProfileDataId) {
       setAliases([]);
+      setAliasFolders([]);
       setTriggers([]);
+      setTriggerFolders([]);
       setScripts([]);
+      setScriptFolders([]);
       setVariables([]);
+      setVariableFolders([]);
       return;
     }
 
     const data = getProfileData(profileDataMap, activeProfileDataId);
     setAliases(data.aliases);
+    setAliasFolders(data.aliasFolders);
     setTriggers(data.triggers);
+    setTriggerFolders(data.triggerFolders);
     setScripts(data.scripts);
+    setScriptFolders(data.scriptFolders);
     setVariables(data.variables);
+    setVariableFolders(data.variableFolders);
   }, [activeProfileDataId, profileDataMap, setVariables]);
 
   useEffect(() => {
@@ -678,15 +747,23 @@ function MudClientApp() {
           onToast={showToast}
           activeProfileDataName={activeProfileDataName}
           aliases={aliases}
+          aliasFolders={aliasFolders}
           canClearProfileData={Boolean(activeProfileDataId)}
           profiles={profiles}
-          setAliases={handleAliasesChange}
-          triggers={triggers}
-          setTriggers={handleTriggersChange}
+          onAliasFoldersChange={handleAliasFoldersChange}
+          onAliasesChange={handleAliasesChange}
+          onScriptFoldersChange={handleScriptFoldersChange}
+          onScriptsChange={handleScriptsChange}
+          onTriggerFoldersChange={handleTriggerFoldersChange}
+          onTriggersChange={handleTriggersChange}
+          onVariableFoldersChange={handleVariableFoldersChange}
+          onVariablesChange={handleVariablesChange}
+          scriptFolders={scriptFolders}
           scripts={scripts}
-          setScripts={handleScriptsChange}
+          triggerFolders={triggerFolders}
+          triggers={triggers}
+          variableFolders={variableFolders}
           variables={variables}
-          setVariables={handleVariablesChange}
         />
         <StatusBar
           appVersion={appVersion}

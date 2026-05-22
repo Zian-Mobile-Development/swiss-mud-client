@@ -1,0 +1,91 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.folderRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: #ccc;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.folderRow:hover {
+  background: #2a2a2a;
+}
+
+.folderToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.folderToggle:hover {
+  background: #333;
+}
+
+.folderLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folderActions {
+  display: inline-flex;
+  gap: 2px;
+  opacity: 0;
+}
+
+.folderRow:hover .folderActions,
+.folderRow:focus-within .folderActions {
+  opacity: 1;
+}
+
+.folderActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #aaa;
+  cursor: pointer;
+}
+
+.folderActionButton:hover {
+  background: #333;
+  color: #fff;
+}
+
+.itemRow {
+  list-style: none;
+}
+
+.itemIndent {
+  padding-left: var(--indent, 8px) !important;
+}
+
+.rootItemSeparator {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #333;
+}

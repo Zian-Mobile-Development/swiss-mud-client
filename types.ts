@@ -1,7 +1,15 @@
+export interface ListFolder {
+  id: string;
+  name: string;
+  parentId?: string | null;
+}
+
 export type Alias = Pattern;
 export type Trigger = Pattern;
 
 export interface Pattern {
+  id?: string;
+  folderId?: string | null;
   name: string;
   pattern: string; // regex string
   command: string; // multi-line, can use $1, $2, ... for capture groups
@@ -9,6 +17,8 @@ export interface Pattern {
 }
 
 export interface Variable {
+  id?: string;
+  folderId?: string | null;
   name: string;
   value: string;
 }
@@ -23,9 +33,13 @@ export interface MudProfile {
 
 export interface ProfileData {
   aliases: Alias[];
+  aliasFolders: ListFolder[];
   triggers: Trigger[];
+  triggerFolders: ListFolder[];
   scripts: Script[];
+  scriptFolders: ListFolder[];
   variables: Variable[];
+  variableFolders: ListFolder[];
 }
 
 export interface Command {
@@ -61,6 +75,8 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export interface Script {
+  id?: string;
+  folderId?: string | null;
   name: string;
   event: string;
   command: string;

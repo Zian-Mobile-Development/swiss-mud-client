@@ -3,57 +3,88 @@
 
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import commonStyles from '../../styles/common.module.css';
-import type { Variable } from '../../types';
+import type { ListFolder, Variable } from '../../types';
 import { IconLabel } from '../icons/IconLabel';
 import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
   GripVertical,
-  Plus,
   Save,
   Trash2,
 } from 'lucide-react';
-
-const emptyVariable: Variable = { name: '', value: '' };
+import { GroupedSidebar } from '../GroupedSidebar/GroupedSidebar';
+import { FolderSelect } from '../FolderSelect';
+import { createListItemId } from '../../utils/listFolders';
 
 type SortOrder = null | 'asc' | 'desc';
 
+const createEmptyVariable = (): Variable => ({
+  id: createListItemId(),
+  name: '',
+  value: '',
+  folderId: null,
+});
+
 export default function VariableView({
   variables,
-  onChange,
+  folders,
+  onVariablesChange,
+  onFoldersChange,
   saveRef,
 }: {
   variables: Variable[];
-  onChange: (variables: Variable[]) => void;
+  folders: ListFolder[];
+  onVariablesChange: (variables: Variable[]) => void;
+  onFoldersChange: (folders: ListFolder[]) => void;
   saveRef?: React.RefObject<{ save: () => void } | null>;
 }) {
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(
-    variables.length > 0 ? 0 : null
+  const [selectedId, setSelectedId] = useState<string | null>(
+    variables[0]?.id ?? null
   );
   const [editBuffer, setEditBuffer] = useState<Variable | null>(null);
   const [localVariables, setLocalVariables] = useState<Variable[]>(variables);
+  const [localFolders, setLocalFolders] = useState<ListFolder[]>(folders);
   const [sortOrder, setSortOrder] = useState<SortOrder>(null);
   const preSortOrderRef = useRef<Variable[] | null>(null);
 
-  // Helper function to save variables
-  const saveVariables = useCallback((updated: Variable[]) => {
-    setLocalVariables(updated);
-    onChange(updated);
-  }, [onChange]);
+  const saveVariables = useCallback(
+    (updated: Variable[]) => {
+      setLocalVariables(updated);
+      onVariablesChange(updated);
+    },
+    [onVariablesChange]
+  );
+
+  const saveFolders = useCallback(
+    (updated: ListFolder[]) => {
+      setLocalFolders(updated);
+      onFoldersChange(updated);
+    },
+    [onFoldersChange]
+  );
 
   useEffect(() => {
     setLocalVariables(variables);
   }, [variables]);
 
-  // When selectedIdx changes, update editBuffer
   useEffect(() => {
-    if (selectedIdx !== null && localVariables[selectedIdx]) {
-      setEditBuffer({ ...localVariables[selectedIdx] });
-    } else {
-      setEditBuffer(null);
+    setLocalFolders(folders);
+  }, [folders]);
+
+  useEffect(() => {
+    if (
+      selectedId &&
+      !localVariables.some(variable => variable.id === selectedId)
+    ) {
+      setSelectedId(localVariables[0]?.id ?? null);
     }
-  }, [selectedIdx, localVariables]);
+  }, [localVariables, selectedId]);
+
+  useEffect(() => {
+    const selected = localVariables.find(variable => variable.id === selectedId);
+    setEditBuffer(selected ? { ...selected } : null);
+  }, [selectedId, localVariables]);
 
   const clearSortState = () => {
     setSortOrder(null);
@@ -62,10 +93,11 @@ export default function VariableView({
 
   const reorderVariables = (reordered: Variable[]) => {
     saveVariables(reordered);
-    if (selectedIdx !== null) {
-      const selectedVar = localVariables[selectedIdx];
-      const newIndex = reordered.findIndex(v => v.name === selectedVar.name);
-      setSelectedIdx(newIndex >= 0 ? newIndex : null);
+    if (selectedId) {
+      const stillSelected = reordered.some(variable => variable.id === selectedId);
+      if (!stillSelected) {
+        setSelectedId(reordered[0]?.id ?? null);
+      }
     }
   };
 
@@ -94,16 +126,15 @@ export default function VariableView({
     reorderVariables(restored);
   };
 
-  // Add new variable and select it
   const handleAdd = () => {
     clearSortState();
-    const newVariables = [{ ...emptyVariable }, ...localVariables];
-    setLocalVariables(newVariables);
-    setEditBuffer({ ...emptyVariable });
-    setSelectedIdx(0);
+    const variable = createEmptyVariable();
+    const updated = [variable, ...localVariables];
+    saveVariables(updated);
+    setEditBuffer({ ...variable });
+    setSelectedId(variable.id ?? null);
   };
 
-  // Update edit buffer inline
   const handleFieldChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -112,91 +143,60 @@ export default function VariableView({
     setEditBuffer({ ...editBuffer, [name]: value });
   };
 
-  // Save changes to selected variable
   const handleSave = useCallback(() => {
-    if (selectedIdx === null || !editBuffer) return;
-    const updated = localVariables.map((variable, idx) =>
-      idx === selectedIdx ? { ...editBuffer } : variable
+    if (!selectedId || !editBuffer) return;
+    saveVariables(
+      localVariables.map(variable =>
+        variable.id === selectedId ? { ...editBuffer } : variable
+      )
     );
-    saveVariables(updated);
-  }, [editBuffer, localVariables, saveVariables, selectedIdx]);
+  }, [editBuffer, localVariables, saveVariables, selectedId]);
 
-  // Expose save method to parent via ref
   useEffect(() => {
     if (saveRef) {
       saveRef.current = { save: handleSave };
     }
   }, [handleSave, saveRef]);
 
-  // Delete selected variable
   const handleDelete = () => {
-    if (selectedIdx === null) return;
+    if (!selectedId) return;
     if (!window.confirm('Delete this variable?')) return;
-    const newVariables = localVariables.filter((_, idx) => idx !== selectedIdx);
-    saveVariables(newVariables);
-    setSelectedIdx(newVariables.length > 0 ? 0 : null);
-  };
-
-  // Select variable
-  const handleSelect = (idx: number) => {
-    setSelectedIdx(idx);
-  };
-
-  // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent<HTMLLIElement>, idx: number) => {
-    e.dataTransfer.setData('text/plain', idx.toString());
-    e.currentTarget.classList.add(commonStyles.dragging);
-  };
-
-  const handleDragEnd = (e: React.DragEvent<HTMLLIElement>) => {
-    e.currentTarget.classList.remove(commonStyles.dragging);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLLIElement>) => {
-    e.preventDefault();
-    e.currentTarget.classList.add(commonStyles.dragOver);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLLIElement>, targetIdx: number) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove(commonStyles.dragOver);
-
-    const sourceIdx = parseInt(e.dataTransfer.getData('text/plain'));
-    if (sourceIdx === targetIdx) return;
-
-    clearSortState();
-    const updated = [...localVariables];
-    const [movedItem] = updated.splice(sourceIdx, 1);
-    updated.splice(targetIdx, 0, movedItem);
-
+    const updated = localVariables.filter(variable => variable.id !== selectedId);
     saveVariables(updated);
-    setSelectedIdx(targetIdx);
+    setSelectedId(updated[0]?.id ?? null);
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLLIElement>) => {
-    e.currentTarget.classList.remove(commonStyles.dragOver);
-  };
-
-  // Check if there are unsaved changes
+  const selected = localVariables.find(variable => variable.id === selectedId);
   const hasUnsaved =
-    selectedIdx !== null &&
+    selected &&
     editBuffer &&
-    JSON.stringify(editBuffer) !== JSON.stringify(localVariables[selectedIdx]);
-
-  const selected = editBuffer;
+    JSON.stringify(editBuffer) !== JSON.stringify(selected);
 
   return (
     <div className={commonStyles.viewContainer}>
-      <div className={commonStyles.sidebar}>
-        <div className={commonStyles.buttonGroup}>
-          <button
-            type='button'
-            className={commonStyles.sidebarToolbarButton}
-            onClick={handleAdd}
-            aria-label='Add variable'
-          >
-            <Plus size={20} aria-hidden />
-          </button>
+      <GroupedSidebar
+        items={localVariables}
+        folders={localFolders}
+        selectedId={selectedId}
+        onSelectId={setSelectedId}
+        onItemsChange={updated => {
+          clearSortState();
+          saveVariables(updated);
+        }}
+        onFoldersChange={saveFolders}
+        onAddItem={handleAdd}
+        listLabel='Variables'
+        addItemAriaLabel='Add variable'
+        addFolderAriaLabel='Add variable folder'
+        getItemLabel={variable => variable.name}
+        renderItemExtra={() => (
+          <GripVertical
+            size={14}
+            className={commonStyles.dragHandle}
+            aria-hidden
+          />
+        )}
+        toolbarExtra={
           <button
             type='button'
             className={commonStyles.sidebarToolbarButton}
@@ -218,48 +218,23 @@ export default function VariableView({
               <ArrowUpDown size={20} aria-hidden />
             )}
           </button>
-        </div>
-        <div className={commonStyles.sidebarList}>
-          <ul role='list' aria-label='Variables'>
-          {localVariables.map((variable, index) => (
-            <li
-              key={index}
-              draggable
-              onDragStart={e => handleDragStart(e, index)}
-              onDragOver={handleDragOver}
-              onDrop={e => handleDrop(e, index)}
-              onDragEnd={handleDragEnd}
-              onDragLeave={handleDragLeave}
-            >
-              <button
-                type='button'
-                className={commonStyles.listRowButton}
-                onClick={() => handleSelect(index)}
-                aria-current={selectedIdx === index ? 'true' : undefined}
-              >
-                <span className={commonStyles.itemContent}>
-                  <GripVertical
-                    size={14}
-                    className={commonStyles.dragHandle}
-                    aria-hidden
-                  />
-                  <span>{variable.name}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        </div>
-      </div>
-      {selected && (
+        }
+      />
+
+      {editBuffer && (
         <div className={commonStyles.detailsPanel}>
+          <FolderSelect
+            folders={localFolders}
+            value={editBuffer.folderId}
+            onChange={folderId => setEditBuffer({ ...editBuffer, folderId })}
+          />
           <div className={commonStyles.formGroup}>
             <label>
               Name
               <input
                 type='text'
                 name='name'
-                value={selected.name}
+                value={editBuffer.name}
                 onChange={handleFieldChange}
               />
             </label>
@@ -270,7 +245,7 @@ export default function VariableView({
               <input
                 type='text'
                 name='value'
-                value={selected.value}
+                value={editBuffer.value}
                 onChange={handleFieldChange}
               />
             </label>

@@ -1,61 +1,91 @@
 // components/ScriptView/index.tsx
 // View for the scripts.
 
-import React, { useCallback, useState, useEffect } from 'react';
-import type { Script } from '../../types';
+import React, { useCallback, useEffect, useState } from 'react';
+import type { ListFolder, Script } from '../../types';
 import commonStyles from '../../styles/common.module.css';
 import Editor from '@monaco-editor/react';
 import { editorOptionsWithLabel } from '../../config/EditorOptions';
 import { IconLabel } from '../icons/IconLabel';
-import { GripVertical, Plus, Save, Trash2 } from 'lucide-react';
+import { GripVertical, Save, Trash2 } from 'lucide-react';
+import { GroupedSidebar } from '../GroupedSidebar/GroupedSidebar';
+import { FolderSelect } from '../FolderSelect';
+import { createListItemId } from '../../utils/listFolders';
 
 interface ScriptViewProps {
   scripts: Script[];
-  onChange: (scripts: Script[]) => void;
+  folders: ListFolder[];
+  onScriptsChange: (scripts: Script[]) => void;
+  onFoldersChange: (folders: ListFolder[]) => void;
   saveRef?: React.RefObject<{ save: () => void } | null>;
 }
 
-const emptyScript: Script = { name: '', event: '', command: '', enabled: true };
+const createEmptyScript = (): Script => ({
+  id: createListItemId(),
+  name: '',
+  event: '',
+  command: '',
+  enabled: true,
+  folderId: null,
+});
 
 const ScriptView: React.FC<ScriptViewProps> = ({
   scripts,
-  onChange,
+  folders,
+  onScriptsChange,
+  onFoldersChange,
   saveRef,
 }) => {
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(
-    scripts.length > 0 ? 0 : null
+  const [selectedId, setSelectedId] = useState<string | null>(
+    scripts[0]?.id ?? null
   );
   const [editBuffer, setEditBuffer] = useState<Script | null>(null);
   const [localScripts, setLocalScripts] = useState<Script[]>(scripts);
+  const [localFolders, setLocalFolders] = useState<ListFolder[]>(folders);
 
-  // Helper function to save scripts
-  const saveScripts = useCallback((updated: Script[]) => {
-    setLocalScripts(updated);
-    onChange(updated);
-  }, [onChange]);
+  const saveScripts = useCallback(
+    (updated: Script[]) => {
+      setLocalScripts(updated);
+      onScriptsChange(updated);
+    },
+    [onScriptsChange]
+  );
+
+  const saveFolders = useCallback(
+    (updated: ListFolder[]) => {
+      setLocalFolders(updated);
+      onFoldersChange(updated);
+    },
+    [onFoldersChange]
+  );
 
   useEffect(() => {
     setLocalScripts(scripts);
   }, [scripts]);
 
-  // When selectedIdx changes, update editBuffer
   useEffect(() => {
-    if (selectedIdx !== null && localScripts[selectedIdx]) {
-      setEditBuffer({ ...localScripts[selectedIdx] });
-    } else {
-      setEditBuffer(null);
-    }
-  }, [selectedIdx, localScripts]);
+    setLocalFolders(folders);
+  }, [folders]);
 
-  // Add new script and select it
+  useEffect(() => {
+    if (selectedId && !localScripts.some(script => script.id === selectedId)) {
+      setSelectedId(localScripts[0]?.id ?? null);
+    }
+  }, [localScripts, selectedId]);
+
+  useEffect(() => {
+    const selected = localScripts.find(script => script.id === selectedId);
+    setEditBuffer(selected ? { ...selected } : null);
+  }, [selectedId, localScripts]);
+
   const handleAdd = () => {
-    const newScripts = [{ ...emptyScript }, ...localScripts];
-    setLocalScripts(newScripts);
-    setEditBuffer({ ...emptyScript });
-    setSelectedIdx(0);
+    const script = createEmptyScript();
+    const updated = [script, ...localScripts];
+    saveScripts(updated);
+    setEditBuffer({ ...script });
+    setSelectedId(script.id ?? null);
   };
 
-  // Update edit buffer inline
   const handleFieldChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -64,170 +94,117 @@ const ScriptView: React.FC<ScriptViewProps> = ({
     setEditBuffer({ ...editBuffer, [name]: value });
   };
 
-  // Save changes to selected script
   const handleSave = useCallback(() => {
-    if (selectedIdx === null || !editBuffer) return;
-    const updated = localScripts.map((script, idx) =>
-      idx === selectedIdx ? { ...editBuffer } : script
+    if (!selectedId || !editBuffer) return;
+    saveScripts(
+      localScripts.map(script =>
+        script.id === selectedId ? { ...editBuffer } : script
+      )
     );
-    saveScripts(updated);
-  }, [editBuffer, localScripts, saveScripts, selectedIdx]);
+  }, [editBuffer, localScripts, saveScripts, selectedId]);
 
-  // Expose save method to parent via ref
   useEffect(() => {
     if (saveRef) {
       saveRef.current = { save: handleSave };
     }
   }, [handleSave, saveRef]);
 
-  // Delete selected script
   const handleDelete = () => {
-    if (selectedIdx === null) return;
+    if (!selectedId) return;
     if (!window.confirm('Delete this script?')) return;
-    const newScripts = localScripts.filter((_, idx) => idx !== selectedIdx);
-    saveScripts(newScripts);
-    setSelectedIdx(newScripts.length > 0 ? 0 : null);
-  };
-
-  // Select script
-  const handleSelect = (idx: number) => {
-    setSelectedIdx(idx);
-  };
-
-  // Check if there are unsaved changes
-  const hasUnsaved =
-    selectedIdx !== null &&
-    editBuffer &&
-    JSON.stringify(editBuffer) !== JSON.stringify(localScripts[selectedIdx]);
-
-  const selected = editBuffer;
-
-  // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent<HTMLLIElement>, idx: number) => {
-    e.dataTransfer.setData('text/plain', idx.toString());
-    e.currentTarget.classList.add(commonStyles.dragging);
-  };
-
-  const handleDragEnd = (e: React.DragEvent<HTMLLIElement>) => {
-    e.currentTarget.classList.remove(commonStyles.dragging);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLLIElement>) => {
-    e.preventDefault();
-    e.currentTarget.classList.add(commonStyles.dragOver);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLLIElement>) => {
-    e.currentTarget.classList.remove(commonStyles.dragOver);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLLIElement>, targetIdx: number) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove(commonStyles.dragOver);
-
-    const sourceIdx = parseInt(e.dataTransfer.getData('text/plain'));
-    if (sourceIdx === targetIdx) return;
-
-    const updated = [...localScripts];
-    const [movedItem] = updated.splice(sourceIdx, 1);
-    updated.splice(targetIdx, 0, movedItem);
-
+    const updated = localScripts.filter(script => script.id !== selectedId);
     saveScripts(updated);
-    setSelectedIdx(targetIdx);
+    setSelectedId(updated[0]?.id ?? null);
   };
+
+  const selected = localScripts.find(script => script.id === selectedId);
+  const hasUnsaved =
+    selected &&
+    editBuffer &&
+    JSON.stringify(editBuffer) !== JSON.stringify(selected);
 
   return (
     <div className={commonStyles.viewContainer}>
-      <div className={commonStyles.sidebar}>
-        <button
-          type='button'
-          className={commonStyles.sidebarToolbarButton}
-          onClick={handleAdd}
-          aria-label='Add script'
-        >
-          <Plus size={20} aria-hidden />
-        </button>
-        <div className={commonStyles.sidebarList}>
-          <ul role='list' aria-label='Scripts'>
-          {localScripts.map((script, index) => (
-            <li
-              key={index}
-              draggable
-              onDragStart={e => handleDragStart(e, index)}
-              onDragOver={handleDragOver}
-              onDrop={e => handleDrop(e, index)}
-              onDragEnd={handleDragEnd}
-              onDragLeave={handleDragLeave}
-            >
-              <button
-                type='button'
-                className={commonStyles.listRowButton}
-                onClick={() => handleSelect(index)}
-                aria-current={selectedIdx === index ? 'true' : undefined}
-              >
-                <span className={commonStyles.itemContent}>
-                  <GripVertical
-                    size={14}
-                    className={commonStyles.dragHandle}
-                    aria-hidden
-                  />
-                  <input
-                    type='checkbox'
-                    checked={script.enabled}
-                    aria-label={`Enable script ${script.name || 'unnamed'}`}
-                    onChange={e => {
-                    e.stopPropagation();
-                    const updated = localScripts.map((s, i) =>
-                      i === index ? { ...s, enabled: e.target.checked } : s
-                    );
-                    saveScripts(updated);
-                  }}
-                  onClick={e => e.stopPropagation()}
-                />
-                  <span>{script.name}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        </div>
-      </div>
-      {selected && (
+      <GroupedSidebar
+        items={localScripts}
+        folders={localFolders}
+        selectedId={selectedId}
+        onSelectId={setSelectedId}
+        onItemsChange={saveScripts}
+        onFoldersChange={saveFolders}
+        onAddItem={handleAdd}
+        listLabel='Scripts'
+        addItemAriaLabel='Add script'
+        addFolderAriaLabel='Add script folder'
+        getItemLabel={script => script.name}
+        renderItemExtra={(script, updateItem) => (
+          <>
+            <GripVertical
+              size={14}
+              className={commonStyles.dragHandle}
+              aria-hidden
+            />
+            <input
+              type='checkbox'
+              checked={script.enabled}
+              aria-label={`Enable script ${script.name || 'unnamed'}`}
+              onChange={e => {
+                e.stopPropagation();
+                updateItem({ enabled: e.target.checked });
+              }}
+              onClick={e => e.stopPropagation()}
+            />
+          </>
+        )}
+      />
+
+      {editBuffer && (
         <div className={commonStyles.detailsPanel}>
-          <label>
-            Name
-            <input
-              type='text'
-              name='name'
-              value={selected.name}
-              onChange={handleFieldChange}
-            />
-          </label>
-          <label>
-            Event
-            <input
-              type='text'
-              name='event'
-              value={selected.event}
-              onChange={handleFieldChange}
-            />
-          </label>
-          <label>
-            Command
-            <div className={commonStyles.editorContainer}>
-              <Editor
-                defaultLanguage='javascript'
-                value={selected.command}
-                onChange={value => {
-                  if (editBuffer) {
-                    setEditBuffer({ ...editBuffer, command: value || '' });
-                  }
-                }}
-                theme={editorOptionsWithLabel('Script command editor').theme}
-                options={editorOptionsWithLabel('Script command editor')}
+          <FolderSelect
+            folders={localFolders}
+            value={editBuffer.folderId}
+            onChange={folderId => setEditBuffer({ ...editBuffer, folderId })}
+          />
+          <div className={commonStyles.formGroup}>
+            <label>
+              Name
+              <input
+                type='text'
+                name='name'
+                value={editBuffer.name}
+                onChange={handleFieldChange}
               />
-            </div>
-          </label>
+            </label>
+          </div>
+          <div className={commonStyles.formGroup}>
+            <label>
+              Event
+              <input
+                type='text'
+                name='event'
+                value={editBuffer.event}
+                onChange={handleFieldChange}
+              />
+            </label>
+          </div>
+          <div className={commonStyles.formGroup}>
+            <label>
+              Command
+              <div className={commonStyles.editorContainer}>
+                <Editor
+                  defaultLanguage='javascript'
+                  value={editBuffer.command}
+                  onChange={value => {
+                    setEditBuffer(current =>
+                      current ? { ...current, command: value || '' } : current
+                    );
+                  }}
+                  theme={editorOptionsWithLabel('Script command editor').theme}
+                  options={editorOptionsWithLabel('Script command editor')}
+                />
+              </div>
+            </label>
+          </div>
           <div className={commonStyles.actions}>
             <button onClick={handleSave} disabled={!hasUnsaved}>
               <IconLabel icon={Save}>Save</IconLabel>
