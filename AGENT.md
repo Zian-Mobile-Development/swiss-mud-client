@@ -38,8 +38,6 @@ If Bun is unavailable in a local agent shell, use the installed project binaries
 
 After substantive changes, run the build locally. Run tests for changes in command parsing, line buffering, triggers, aliases, accessibility announcements, or shared utilities.
 
-Known current test caveat: `tests/utils/CommandUtils.test.ts` expects `parseSpeedwalk('')` to return `['']`, while the current implementation returns `[]`.
-
 ## Architecture & State Management
 
 ### Directory structure

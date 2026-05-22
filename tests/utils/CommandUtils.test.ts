@@ -33,7 +33,7 @@ describe('parseSpeedwalk', () => {
   });
 
   it('handles empty string', () => {
-    expect(parseSpeedwalk('')).toEqual(['']);
-    expect(parseSpeedwalk('', true)).toEqual(['']);
+    expect(parseSpeedwalk('')).toEqual([]);
+    expect(parseSpeedwalk('', true)).toEqual([]);
   });
 });

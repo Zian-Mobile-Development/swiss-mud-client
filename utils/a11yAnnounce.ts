@@ -1,6 +1,5 @@
 import type { Settings } from '../types';
-import { LineBuffer } from './LineBuffer';
-import { normalizeLineForTrigger, stripHtmlTags } from './TextUtils';
+import { stripHtmlTags } from './TextUtils';
 
 export function isSystemMessage(data: string): boolean {
   return (
@@ -12,13 +11,6 @@ export function isSystemMessage(data: string): boolean {
 
 export function plainTextFromHtmlChunk(html: string): string {
   return stripHtmlTags(html);
-}
-
-export function linesFromPlainChunk(
-  buffer: LineBuffer,
-  plainChunk: string
-): string[] {
-  return buffer.append(plainChunk).map(line => normalizeLineForTrigger(line));
 }
 
 export function shouldUseLineBufferForTriggers(settings: Settings): boolean {

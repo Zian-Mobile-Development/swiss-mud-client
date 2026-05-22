@@ -9,7 +9,7 @@ import {
   Zap,
 } from 'lucide-react';
 
-export type MenuItemId =
+type MenuItemId =
   | 'connect'
   | 'triggers'
   | 'alias'

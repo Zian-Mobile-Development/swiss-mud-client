@@ -1,18 +1,9 @@
 // utils/OutputUtils.ts
 // Utilities for game output buffer and connection messages.
 
-import { ON_SCREEN_CMD_LIMIT } from '../constants';
-
-const OUTPUT_CHAR_LIMIT = ON_SCREEN_CMD_LIMIT * 2000;
 const ANSI_RESET = '\x1b[0m';
 const ANSI_USER_COMMAND = '\x1b[38;2;99;179;244m';
 const ANSI_SYSTEM_MESSAGE = '\x1b[38;2;255;207;102m';
-
-export function trimOutput(html: string): string {
-  return html.length > OUTPUT_CHAR_LIMIT
-    ? html.slice(-OUTPUT_CHAR_LIMIT)
-    : html;
-}
 
 export function formatWebSocketClose(event: CloseEvent): string {
   const reason = event.reason ? `, reason: ${event.reason}` : '';

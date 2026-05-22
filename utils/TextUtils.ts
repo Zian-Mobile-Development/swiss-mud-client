@@ -1,15 +1,6 @@
 // utils/TextUtils.ts
 // Utility functions for text manipulation.
 
-export function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 export const stripHtmlTags = (html: string): string => {
   const withoutTags = html.replace(/<[^>]*>/g, '');
   return decodeHtmlEntities(withoutTags);

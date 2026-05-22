@@ -22,5 +22,3 @@ export function editorOptionsWithLabel(
 ): editor.IStandaloneEditorConstructionOptions {
   return { ...EditorOptions, ariaLabel: label };
 }
-
-export default EditorOptions;
