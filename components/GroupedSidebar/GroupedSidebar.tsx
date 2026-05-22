@@ -7,7 +7,6 @@ import {
   createListFolderId,
   detachItemsFromFolders,
   removeFolderAndChildren,
-  type FolderTreeNode,
 } from '../../utils/listFolders';
 import {
   ChevronDown,
@@ -48,19 +47,6 @@ type GroupedSidebarProps<T extends GroupedItem> = {
 const indentStyle = (depth: number): React.CSSProperties => ({
   '--indent': `${8 + depth * 20}px`,
 } as React.CSSProperties);
-
-const hasFolderBeforeIndex = (
-  nodes: FolderTreeNode<GroupedItem>[],
-  index: number
-) => nodes.slice(0, index).some(node => node.type === 'folder');
-
-const hasRootItemBeforeIndex = (
-  nodes: FolderTreeNode<GroupedItem>[],
-  index: number
-) =>
-  nodes
-    .slice(0, index)
-    .some(node => node.type === 'item' && node.depth === 0);
 
 const dragSourceIsButton = (event: React.DragEvent<HTMLElement>) =>
   event.target instanceof HTMLElement && Boolean(event.target.closest('button'));
@@ -472,7 +458,7 @@ export function GroupedSidebar<T extends GroupedItem>({
               No items yet
             </li>
           ) : (
-            tree.map((node, index) => {
+            tree.map(node => {
               if (node.type === 'folder') {
                 const { folder, depth } = node;
                 const isCollapsed = collapsedFolderIds.has(folder.id);
@@ -576,7 +562,7 @@ export function GroupedSidebar<T extends GroupedItem>({
                   className={classNames(styles.itemRow, {
                     [commonStyles.dragOver]:
                       dragOverTarget === `item:${itemId}`,
-                    [styles.multiSelectedItem]: selectedItemIds.has(itemId)
+                    [styles.multiSelectedItem]: selectedItemIds.has(itemId),
                   })}
                   style={indentStyle(depth)}
                   draggable

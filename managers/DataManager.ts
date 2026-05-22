@@ -10,7 +10,11 @@ import type {
   Trigger,
   Variable,
 } from '../types';
-import type { ProfileDataMap } from '../utils/ProfileDataStore';
+import {
+  loadProfileDataMap,
+  loadProfiles,
+  type ProfileDataMap,
+} from '../utils/ProfileDataStore';
 
 export interface MudData {
   mud_profiles: Partial<MudProfile>[];
@@ -72,11 +76,11 @@ export class DataManager {
   }
 
   static getDataFromStorage(): MudData {
+    const profiles = loadProfiles();
+
     return {
-      mud_profiles: JSON.parse(localStorage.getItem('mud_profiles') || '[]'),
-      mud_profile_data: JSON.parse(
-        localStorage.getItem('mud_profile_data') || '{}'
-      ),
+      mud_profiles: profiles,
+      mud_profile_data: loadProfileDataMap(profiles),
       mud_variables: JSON.parse(localStorage.getItem('mud_variables') || '[]'),
       mud_aliases: JSON.parse(localStorage.getItem('mud_aliases') || '[]'),
       mud_triggers: JSON.parse(localStorage.getItem('mud_triggers') || '[]'),
