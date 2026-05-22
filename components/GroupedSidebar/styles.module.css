@@ -85,12 +85,10 @@
   list-style: none;
 }
 
-.itemIndent {
-  padding-left: var(--indent, 8px) !important;
+.multiSelectedItem > button {
+  background: #36475d !important;
 }
 
-.rootItemSeparator {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #333;
+.itemIndent {
+  padding-left: var(--indent, 8px) !important;
 }

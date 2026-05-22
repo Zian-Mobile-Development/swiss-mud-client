@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { ListFolder } from '../../types';
 import commonStyles from '../../styles/common.module.css';
 import styles from './styles.module.css';
@@ -65,6 +65,14 @@ const hasRootItemBeforeIndex = (
 const dragSourceIsButton = (event: React.DragEvent<HTMLElement>) =>
   event.target instanceof HTMLElement && Boolean(event.target.closest('button'));
 
+const dragSourceIsFormControl = (event: React.DragEvent<HTMLElement>) =>
+  event.target instanceof HTMLElement &&
+  Boolean(event.target.closest('input, select, textarea'));
+
+const ITEM_IDS_DATA_TYPE = 'application/x-swiss-list-item-ids';
+const ITEM_ID_DATA_TYPE = 'application/x-swiss-list-item-id';
+const FOLDER_ID_DATA_TYPE = 'application/x-swiss-list-folder-id';
+
 export function GroupedSidebar<T extends GroupedItem>({
   items,
   folders,
@@ -84,11 +92,45 @@ export function GroupedSidebar<T extends GroupedItem>({
     () => new Set()
   );
   const [dragOverTarget, setDragOverTarget] = useState<string | null>(null);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
+    () => new Set(selectedId ? [selectedId] : [])
+  );
+  const [lastSelectedItemId, setLastSelectedItemId] = useState<string | null>(
+    selectedId
+  );
 
   const tree = useMemo(
     () => buildFolderTree(folders, items, collapsedFolderIds),
     [folders, items, collapsedFolderIds]
   );
+  const visibleItemIds = useMemo(
+    () => {
+      const ids: string[] = [];
+      for (const node of tree) {
+        if (node.type === 'item' && node.item.id) {
+          ids.push(node.item.id);
+        }
+      }
+      return ids;
+    },
+    [tree]
+  );
+
+  useEffect(() => {
+    const availableIds = new Set(items.map(item => item.id).filter(Boolean));
+    setSelectedItemIds(prev => {
+      const next = new Set(
+        [...prev].filter(itemId => availableIds.has(itemId))
+      );
+      if (next.size === 0 && selectedId && availableIds.has(selectedId)) {
+        next.add(selectedId);
+      }
+      return next;
+    });
+    if (lastSelectedItemId && !availableIds.has(lastSelectedItemId)) {
+      setLastSelectedItemId(selectedId ?? null);
+    }
+  }, [items, lastSelectedItemId, selectedId]);
 
   const toggleFolder = (folderId: string) => {
     setCollapsedFolderIds(prev => {
@@ -208,19 +250,24 @@ export function GroupedSidebar<T extends GroupedItem>({
     onFoldersChange(updated);
   };
 
-  const moveItem = (
-    draggedItemId: string,
+  const moveItems = (
+    draggedItemIds: string[],
     target:
       | { type: 'folder'; folderId: string | null }
       | { type: 'item'; itemId: string }
   ) => {
-    const draggedItem = items.find(item => item.id === draggedItemId);
-    if (!draggedItem) return;
+    const draggedIds = new Set(draggedItemIds);
+    const movedItems = items.filter(
+      item => item.id && draggedIds.has(item.id)
+    );
+    if (movedItems.length === 0) return;
 
-    const remainingItems = items.filter(item => item.id !== draggedItemId);
+    const remainingItems = items.filter(
+      item => !item.id || !draggedIds.has(item.id)
+    );
 
     if (target.type === 'item') {
-      if (target.itemId === draggedItemId) return;
+      if (draggedIds.has(target.itemId)) return;
 
       const targetItem = items.find(item => item.id === target.itemId);
       const targetIndex = remainingItems.findIndex(
@@ -228,40 +275,80 @@ export function GroupedSidebar<T extends GroupedItem>({
       );
       if (!targetItem || targetIndex < 0) return;
 
-      const movedItem = {
-        ...draggedItem,
+      const updatedMovedItems = movedItems.map(item => ({
+        ...item,
         folderId: targetItem.folderId ?? null,
-      };
+      }));
       const updated = [...remainingItems];
-      updated.splice(targetIndex, 0, movedItem);
+      updated.splice(targetIndex, 0, ...updatedMovedItems);
       onItemsChange(updated);
-      onSelectId(draggedItemId);
+      onSelectId(movedItems[0].id ?? null);
+      setSelectedItemIds(new Set(movedItems.map(item => item.id!)));
       return;
     }
 
-    const movedItem = { ...draggedItem, folderId: target.folderId };
+    const updatedMovedItems = movedItems.map(item => ({
+      ...item,
+      folderId: target.folderId,
+    }));
     const lastSiblingIndex = remainingItems.reduce(
       (lastIndex, item, index) =>
         (item.folderId ?? null) === target.folderId ? index : lastIndex,
       -1
     );
     const updated = [...remainingItems];
-    updated.splice(lastSiblingIndex + 1, 0, movedItem);
+    updated.splice(lastSiblingIndex + 1, 0, ...updatedMovedItems);
     onItemsChange(updated);
-    onSelectId(draggedItemId);
+    onSelectId(movedItems[0].id ?? null);
+    setSelectedItemIds(new Set(movedItems.map(item => item.id!)));
+  };
+
+  const handleItemSelect = (
+    event: React.MouseEvent<HTMLButtonElement>,
+    itemId: string
+  ) => {
+    onSelectId(itemId);
+
+    if (event.shiftKey && lastSelectedItemId) {
+      const anchorIndex = visibleItemIds.indexOf(lastSelectedItemId);
+      const currentIndex = visibleItemIds.indexOf(itemId);
+      if (anchorIndex >= 0 && currentIndex >= 0) {
+        const [start, end] =
+          anchorIndex < currentIndex
+            ? [anchorIndex, currentIndex]
+            : [currentIndex, anchorIndex];
+        setSelectedItemIds(new Set(visibleItemIds.slice(start, end + 1)));
+        return;
+      }
+    }
+
+    setSelectedItemIds(new Set([itemId]));
+    setLastSelectedItemId(itemId);
   };
 
   const handleDragStart = (
     event: React.DragEvent<HTMLLIElement>,
     itemId: string
   ) => {
-    if (dragSourceIsButton(event)) {
+    if (dragSourceIsFormControl(event)) {
       event.preventDefault();
       return;
     }
 
+    const draggedItemIds =
+      selectedItemIds.has(itemId) && selectedItemIds.size > 1
+        ? [...selectedItemIds]
+        : [itemId];
+
+    if (!selectedItemIds.has(itemId)) {
+      setSelectedItemIds(new Set([itemId]));
+      setLastSelectedItemId(itemId);
+      onSelectId(itemId);
+    }
+
     event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('application/x-swiss-list-item-id', itemId);
+    event.dataTransfer.setData(ITEM_IDS_DATA_TYPE, JSON.stringify(draggedItemIds));
+    event.dataTransfer.setData(ITEM_ID_DATA_TYPE, itemId);
     event.dataTransfer.setData('text/plain', itemId);
     event.currentTarget.classList.add(commonStyles.dragging);
   };
@@ -276,7 +363,7 @@ export function GroupedSidebar<T extends GroupedItem>({
     }
 
     event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('application/x-swiss-list-folder-id', folderId);
+    event.dataTransfer.setData(FOLDER_ID_DATA_TYPE, folderId);
     event.dataTransfer.setData('text/plain', folderId);
     event.currentTarget.classList.add(commonStyles.dragging);
   };
@@ -305,12 +392,27 @@ export function GroupedSidebar<T extends GroupedItem>({
     setDragOverTarget(current => (current === targetKey ? null : current));
   };
 
-  const draggedItemIdFrom = (event: React.DragEvent<HTMLElement>) =>
-    event.dataTransfer.getData('application/x-swiss-list-item-id') ||
-    event.dataTransfer.getData('text/plain');
+  const draggedItemIdsFrom = (event: React.DragEvent<HTMLElement>) => {
+    const itemIds = event.dataTransfer.getData(ITEM_IDS_DATA_TYPE);
+    if (itemIds) {
+      try {
+        const parsed = JSON.parse(itemIds);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((id): id is string => typeof id === 'string');
+        }
+      } catch {
+        return [];
+      }
+    }
+
+    const itemId =
+      event.dataTransfer.getData(ITEM_ID_DATA_TYPE) ||
+      event.dataTransfer.getData('text/plain');
+    return itemId ? [itemId] : [];
+  };
 
   const draggedFolderIdFrom = (event: React.DragEvent<HTMLElement>) =>
-    event.dataTransfer.getData('application/x-swiss-list-folder-id');
+    event.dataTransfer.getData(FOLDER_ID_DATA_TYPE);
 
   const handleDropOnFolder = (
     event: React.DragEvent<HTMLLIElement>,
@@ -324,10 +426,10 @@ export function GroupedSidebar<T extends GroupedItem>({
       return;
     }
 
-    const draggedItemId = draggedItemIdFrom(event);
+    const draggedItemIds = draggedItemIdsFrom(event);
     setDragOverTarget(null);
-    if (!draggedItemId) return;
-    moveItem(draggedItemId, { type: 'folder', folderId });
+    if (draggedItemIds.length === 0) return;
+    moveItems(draggedItemIds, { type: 'folder', folderId });
   };
 
   const handleDropOnItem = (
@@ -335,10 +437,10 @@ export function GroupedSidebar<T extends GroupedItem>({
     itemId: string
   ) => {
     event.preventDefault();
-    const draggedItemId = draggedItemIdFrom(event);
+    const draggedItemIds = draggedItemIdsFrom(event);
     setDragOverTarget(null);
-    if (!draggedItemId) return;
-    moveItem(draggedItemId, { type: 'item', itemId });
+    if (draggedItemIds.length === 0) return;
+    moveItems(draggedItemIds, { type: 'item', itemId });
   };
 
   return (
@@ -467,11 +569,6 @@ export function GroupedSidebar<T extends GroupedItem>({
               const { item, depth } = node;
               const label = getItemLabel(item) || '(unnamed)';
               const itemId = item.id!;
-              const showRootSeparator =
-                depth === 0 &&
-                index > 0 &&
-                hasFolderBeforeIndex(tree, index) &&
-                !hasRootItemBeforeIndex(tree, index);
 
               return (
                 <li
@@ -479,7 +576,7 @@ export function GroupedSidebar<T extends GroupedItem>({
                   className={classNames(styles.itemRow, {
                     [commonStyles.dragOver]:
                       dragOverTarget === `item:${itemId}`,
-                    [styles.rootItemSeparator]: showRootSeparator,
+                    [styles.multiSelectedItem]: selectedItemIds.has(itemId)
                   })}
                   style={indentStyle(depth)}
                   draggable
@@ -495,8 +592,9 @@ export function GroupedSidebar<T extends GroupedItem>({
                       commonStyles.listRowButton,
                       styles.itemIndent
                     )}
-                    onClick={() => onSelectId(itemId)}
+                    onClick={event => handleItemSelect(event, itemId)}
                     aria-current={selectedId === itemId ? 'true' : undefined}
+                    aria-selected={selectedItemIds.has(itemId)}
                   >
                     <span className={commonStyles.itemContent}>
                       {renderItemExtra?.(item, patch =>
