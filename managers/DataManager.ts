@@ -5,6 +5,7 @@ import type {
   Alias,
   MudProfile,
   ProfileData,
+  Script,
   Settings,
   Trigger,
   Variable,
@@ -17,6 +18,7 @@ export interface MudData {
   mud_variables: Variable[];
   mud_aliases: Alias[];
   mud_triggers: Trigger[];
+  mud_scripts?: Script[];
   mud_settings: Partial<Settings>;
 }
 
@@ -78,6 +80,7 @@ export class DataManager {
       mud_variables: JSON.parse(localStorage.getItem('mud_variables') || '[]'),
       mud_aliases: JSON.parse(localStorage.getItem('mud_aliases') || '[]'),
       mud_triggers: JSON.parse(localStorage.getItem('mud_triggers') || '[]'),
+      mud_scripts: JSON.parse(localStorage.getItem('mud_scripts') || '[]'),
       mud_settings: JSON.parse(
         localStorage.getItem('mud_settings') ||
           JSON.stringify({
@@ -95,10 +98,13 @@ export class DataManager {
         'mud_profile_data',
         JSON.stringify(data.mud_profile_data)
       );
+    } else {
+      localStorage.removeItem('mud_profile_data');
     }
     localStorage.setItem('mud_variables', JSON.stringify(data.mud_variables));
     localStorage.setItem('mud_aliases', JSON.stringify(data.mud_aliases));
     localStorage.setItem('mud_triggers', JSON.stringify(data.mud_triggers));
+    localStorage.setItem('mud_scripts', JSON.stringify(data.mud_scripts ?? []));
     localStorage.setItem('mud_settings', JSON.stringify(data.mud_settings));
   }
 
@@ -111,6 +117,8 @@ export class DataManager {
       Array.isArray(candidate.mud_variables) &&
       Array.isArray(candidate.mud_aliases) &&
       Array.isArray(candidate.mud_triggers) &&
+      (candidate.mud_scripts === undefined ||
+        Array.isArray(candidate.mud_scripts)) &&
       typeof candidate.mud_settings === 'object' &&
       (candidate.mud_profile_data === undefined ||
         isProfileDataMap(candidate.mud_profile_data))

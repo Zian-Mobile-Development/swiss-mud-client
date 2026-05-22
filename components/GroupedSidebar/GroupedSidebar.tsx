@@ -62,6 +62,9 @@ const hasRootItemBeforeIndex = (
     .slice(0, index)
     .some(node => node.type === 'item' && node.depth === 0);
 
+const dragSourceIsButton = (event: React.DragEvent<HTMLElement>) =>
+  event.target instanceof HTMLElement && Boolean(event.target.closest('button'));
+
 export function GroupedSidebar<T extends GroupedItem>({
   items,
   folders,
@@ -158,6 +161,53 @@ export function GroupedSidebar<T extends GroupedItem>({
     );
   };
 
+  const childFolderIdsOf = (folderId: string) => {
+    const childFolderIds = new Set<string>([folderId]);
+    let scanning = true;
+
+    while (scanning) {
+      scanning = false;
+      for (const folder of folders) {
+        if (
+          folder.parentId &&
+          childFolderIds.has(folder.parentId) &&
+          !childFolderIds.has(folder.id)
+        ) {
+          childFolderIds.add(folder.id);
+          scanning = true;
+        }
+      }
+    }
+
+    return childFolderIds;
+  };
+
+  const moveFolder = (draggedFolderId: string, targetFolderId: string) => {
+    if (draggedFolderId === targetFolderId) return;
+
+    const draggedFolder = folders.find(folder => folder.id === draggedFolderId);
+    const targetFolder = folders.find(folder => folder.id === targetFolderId);
+    if (!draggedFolder || !targetFolder) return;
+
+    if (childFolderIdsOf(draggedFolderId).has(targetFolderId)) return;
+
+    const remainingFolders = folders.filter(
+      folder => folder.id !== draggedFolderId
+    );
+    const targetIndex = remainingFolders.findIndex(
+      folder => folder.id === targetFolderId
+    );
+    if (targetIndex < 0) return;
+
+    const movedFolder = {
+      ...draggedFolder,
+      parentId: targetFolder.parentId ?? null,
+    };
+    const updated = [...remainingFolders];
+    updated.splice(targetIndex, 0, movedFolder);
+    onFoldersChange(updated);
+  };
+
   const moveItem = (
     draggedItemId: string,
     target:
@@ -205,9 +255,29 @@ export function GroupedSidebar<T extends GroupedItem>({
     event: React.DragEvent<HTMLLIElement>,
     itemId: string
   ) => {
+    if (dragSourceIsButton(event)) {
+      event.preventDefault();
+      return;
+    }
+
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('application/x-swiss-list-item-id', itemId);
     event.dataTransfer.setData('text/plain', itemId);
+    event.currentTarget.classList.add(commonStyles.dragging);
+  };
+
+  const handleFolderDragStart = (
+    event: React.DragEvent<HTMLLIElement>,
+    folderId: string
+  ) => {
+    if (dragSourceIsButton(event)) {
+      event.preventDefault();
+      return;
+    }
+
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('application/x-swiss-list-folder-id', folderId);
+    event.dataTransfer.setData('text/plain', folderId);
     event.currentTarget.classList.add(commonStyles.dragging);
   };
 
@@ -239,11 +309,21 @@ export function GroupedSidebar<T extends GroupedItem>({
     event.dataTransfer.getData('application/x-swiss-list-item-id') ||
     event.dataTransfer.getData('text/plain');
 
+  const draggedFolderIdFrom = (event: React.DragEvent<HTMLElement>) =>
+    event.dataTransfer.getData('application/x-swiss-list-folder-id');
+
   const handleDropOnFolder = (
     event: React.DragEvent<HTMLLIElement>,
     folderId: string | null
   ) => {
     event.preventDefault();
+    const draggedFolderId = draggedFolderIdFrom(event);
+    if (folderId && draggedFolderId) {
+      setDragOverTarget(null);
+      moveFolder(draggedFolderId, folderId);
+      return;
+    }
+
     const draggedItemId = draggedItemIdFrom(event);
     setDragOverTarget(null);
     if (!draggedItemId) return;
@@ -299,14 +379,19 @@ export function GroupedSidebar<T extends GroupedItem>({
                   <li
                     key={folder.id}
                     className={classNames(styles.itemRow, {
-                      [commonStyles.dragOver]:
+                      [styles.folderDragOver]:
                         dragOverTarget === `folder:${folder.id}`,
                     })}
                     style={indentStyle(depth)}
+                    draggable
+                    onDragStart={event =>
+                      handleFolderDragStart(event, folder.id)
+                    }
                     onDragOver={event =>
                       handleDragOver(event, `folder:${folder.id}`)
                     }
                     onDrop={event => handleDropOnFolder(event, folder.id)}
+                    onDragEnd={handleDragEnd}
                     onDragLeave={event =>
                       handleDragLeave(event, `folder:${folder.id}`)
                     }
@@ -316,11 +401,25 @@ export function GroupedSidebar<T extends GroupedItem>({
                         styles.folderRow,
                         styles.itemIndent
                       )}
+                      onClick={() => toggleFolder(folder.id)}
+                      role='button'
+                      tabIndex={0}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          toggleFolder(folder.id);
+                        }
+                      }}
+                      aria-expanded={!isCollapsed}
                     >
                       <button
                         type='button'
                         className={styles.folderToggle}
-                        onClick={() => toggleFolder(folder.id)}
+                        onClick={event => {
+                          event.stopPropagation();
+                          toggleFolder(folder.id);
+                        }}
+                        tabIndex={-1}
                         aria-expanded={!isCollapsed}
                         aria-label={
                           isCollapsed
@@ -340,7 +439,10 @@ export function GroupedSidebar<T extends GroupedItem>({
                         <button
                           type='button'
                           className={styles.folderActionButton}
-                          onClick={() => handleRenameFolder(folder)}
+                          onClick={event => {
+                            event.stopPropagation();
+                            handleRenameFolder(folder);
+                          }}
                           aria-label={`Rename ${folder.name}`}
                         >
                           <Pencil size={14} aria-hidden />
@@ -348,7 +450,10 @@ export function GroupedSidebar<T extends GroupedItem>({
                         <button
                           type='button'
                           className={styles.folderActionButton}
-                          onClick={() => handleDeleteFolder(folder)}
+                          onClick={event => {
+                            event.stopPropagation();
+                            handleDeleteFolder(folder);
+                          }}
                           aria-label={`Delete ${folder.name}`}
                         >
                           <Trash2 size={14} aria-hidden />

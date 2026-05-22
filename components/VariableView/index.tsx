@@ -9,7 +9,6 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  GripVertical,
   Save,
   Trash2,
 } from 'lucide-react';
@@ -189,13 +188,6 @@ export default function VariableView({
         addItemAriaLabel='Add variable'
         addFolderAriaLabel='Add variable folder'
         getItemLabel={variable => variable.name}
-        renderItemExtra={() => (
-          <GripVertical
-            size={14}
-            className={commonStyles.dragHandle}
-            aria-hidden
-          />
-        )}
         toolbarExtra={
           <button
             type='button'

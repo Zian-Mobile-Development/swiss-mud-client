@@ -149,8 +149,8 @@ const DataView: React.FC<DataViewProps> = ({
         )}
         <div className={styles.importSection}>
           <label className={styles.jsonLabel}>
-            Paste your JSON data below to import aliases, triggers, variables
-            and settings.
+            Paste your JSON data below to import profiles, folders, aliases,
+            triggers, scripts, variables, and settings.
           </label>
           <textarea
             className={commonStyles.textarea}

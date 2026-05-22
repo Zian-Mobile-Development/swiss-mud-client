@@ -7,7 +7,7 @@ import commonStyles from '../../styles/common.module.css';
 import Editor from '@monaco-editor/react';
 import { editorOptionsWithLabel } from '../../config/EditorOptions';
 import { IconLabel } from '../icons/IconLabel';
-import { GripVertical, Save, Trash2 } from 'lucide-react';
+import { Save, Trash2 } from 'lucide-react';
 import { GroupedSidebar } from '../GroupedSidebar/GroupedSidebar';
 import { FolderSelect } from '../FolderSelect';
 import { createListItemId } from '../../utils/listFolders';
@@ -138,23 +138,16 @@ const AliasView: React.FC<AliasViewProps> = ({
         addFolderAriaLabel='Add alias folder'
         getItemLabel={alias => alias.name}
         renderItemExtra={(alias, updateItem) => (
-          <>
-            <GripVertical
-              size={14}
-              className={commonStyles.dragHandle}
-              aria-hidden
-            />
-            <input
-              type='checkbox'
-              checked={alias.enabled}
-              aria-label={`Enable alias ${alias.name || 'unnamed'}`}
-              onChange={e => {
-                e.stopPropagation();
-                updateItem({ enabled: e.target.checked });
-              }}
-              onClick={e => e.stopPropagation()}
-            />
-          </>
+          <input
+            type='checkbox'
+            checked={alias.enabled}
+            aria-label={`Enable alias ${alias.name || 'unnamed'}`}
+            onChange={e => {
+              e.stopPropagation();
+              updateItem({ enabled: e.target.checked });
+            }}
+            onClick={e => e.stopPropagation()}
+          />
         )}
       />
 
