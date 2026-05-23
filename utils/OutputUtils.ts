@@ -4,6 +4,12 @@
 const ANSI_RESET = '\x1b[0m';
 const ANSI_USER_COMMAND = '\x1b[38;2;99;179;244m';
 const ANSI_SYSTEM_MESSAGE = '\x1b[38;2;255;207;102m';
+const ANSI_UNDERLINE = '\x1b[4m';
+const ANSI_UNDERLINE_OFF = '\x1b[24m';
+const OSC8_CLOSE = '\x1b]8;;\x07';
+const ESC = '\x1b';
+const ETX = '\x03';
+const EOT = '\x04';
 
 export function formatWebSocketClose(event: CloseEvent): string {
   const reason = event.reason ? `, reason: ${event.reason}` : '';
@@ -20,12 +26,14 @@ export function formatSystemMessageForTerminal(message: string): string {
 
 export function htmlChunkToTerminalText(html: string): string {
   const stack: string[] = [];
+  const links: string[] = [];
   let output = '';
   let cursor = 0;
+  const mxp = normalizeMxpMarkers(html);
   const tagPattern = /<\/?[^>]+>/g;
 
-  for (const match of html.matchAll(tagPattern)) {
-    output += decodeHtmlEntities(html.slice(cursor, match.index));
+  for (const match of mxp.matchAll(tagPattern)) {
+    output += decodeHtmlEntities(mxp.slice(cursor, match.index));
 
     const tag = match[0];
     const normalizedTag = tag.toLowerCase();
@@ -42,13 +50,140 @@ export function htmlChunkToTerminalText(html: string): string {
     } else if (normalizedTag.startsWith('</span') && stack.length > 0) {
       stack.pop();
       output += ANSI_RESET + stack.join('');
+    } else if (normalizedTag.startsWith('<a')) {
+      const href = hrefFromTag(tag);
+      if (href) {
+        links.push(href);
+        output += formatTerminalLinkOpen(href);
+      }
+    } else if (normalizedTag.startsWith('</a') && links.length > 0) {
+      links.pop();
+      output += formatTerminalLinkClose(links.at(-1), stack);
+    } else if (normalizedTag.startsWith('<send')) {
+      const href = hrefFromTag(tag);
+      if (href) {
+        links.push(`command:${href}`);
+        output += ANSI_UNDERLINE;
+      }
+    } else if (normalizedTag.startsWith('</send') && links.length > 0) {
+      links.pop();
+      output += ANSI_UNDERLINE_OFF;
+    } else if (normalizedTag.startsWith('<image') || normalizedTag.startsWith('<img')) {
+      const source = imageSourceFromTag(tag);
+      if (source) {
+        const label = labelFromTag(tag) || source;
+        output += `${formatTerminalLinkOpen(source)}[image: ${label}]${formatTerminalLinkClose(
+          links.at(-1),
+          stack
+        )}`;
+      }
     }
 
     cursor = match.index + tag.length;
   }
 
-  output += decodeHtmlEntities(html.slice(cursor));
+  output += decodeHtmlEntities(mxp.slice(cursor));
   return normalizeTerminalNewlines(output);
+}
+
+function normalizeMxpMarkers(text: string): string {
+  let output = '';
+
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === ESC && text[index + 1] === '[') {
+      let cursor = index + 2;
+      while (cursor < text.length && /\d/.test(text[cursor])) {
+        cursor += 1;
+      }
+      if (text[cursor] === 'z') {
+        index = cursor;
+        continue;
+      }
+    }
+
+    if (text[index] === ETX) {
+      const end = text.indexOf(EOT, index + 1);
+      if (end >= 0) {
+        output += `<${text.slice(index + 1, end)}>`;
+        index = end;
+        continue;
+      }
+    }
+
+    output += text[index];
+  }
+
+  return output;
+}
+
+function hrefFromTag(tag: string): string {
+  const href =
+    attributeValue(tag, 'href') ||
+    attributeValue(tag, 'xch_href') ||
+    firstPositionalAttribute(tag);
+  return normalizeLinkTarget(href);
+}
+
+function imageSourceFromTag(tag: string): string {
+  return normalizeLinkTarget(
+    attributeValue(tag, 'url') ||
+      attributeValue(tag, 'src') ||
+      attributeValue(tag, 'fname') ||
+      ''
+  );
+}
+
+function labelFromTag(tag: string): string {
+  return (
+    attributeValue(tag, 'hint') ||
+    attributeValue(tag, 'title') ||
+    attributeValue(tag, 'alt') ||
+    attributeValue(tag, 'fname') ||
+    ''
+  );
+}
+
+function attributeValue(tag: string, name: string): string {
+  const match = tag.match(
+    new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i')
+  );
+  return decodeHtmlEntities(match?.[1] || match?.[2] || match?.[3] || '');
+}
+
+function firstPositionalAttribute(tag: string): string {
+  const match = tag.match(/^<\s*\w+\s+(?:"([^"]*)"|'([^']*)'|([^\s=>]+))/i);
+  return decodeHtmlEntities(match?.[1] || match?.[2] || match?.[3] || '');
+}
+
+function normalizeLinkTarget(target: string): string {
+  const trimmed = target.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^www\./i.test(trimmed)) return `http://${trimmed}`;
+  return '';
+}
+
+function formatTerminalLinkOpen(href: string): string {
+  return `\x1b]8;;${sanitizeOsc8Uri(href)}\x07${ANSI_UNDERLINE}`;
+}
+
+function formatTerminalLinkClose(activeHref: string | undefined, stack: string[]) {
+  const restoreActiveLink = activeHref
+    ? `\x1b]8;;${sanitizeOsc8Uri(activeHref)}\x07${ANSI_UNDERLINE}`
+    : '';
+  return `${OSC8_CLOSE}${ANSI_UNDERLINE_OFF}${ANSI_RESET}${stack.join('')}${restoreActiveLink}`;
+}
+
+function sanitizeOsc8Uri(uri: string): string {
+  let sanitized = '';
+
+  for (const char of uri) {
+    const code = char.codePointAt(0) ?? 0;
+    sanitized += code <= 31 || code === 127 || char === '\\'
+      ? encodeURIComponent(char)
+      : char;
+  }
+
+  return sanitized;
 }
 
 function ansiSequenceFromSpan(tag: string): string {
