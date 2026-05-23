@@ -472,11 +472,30 @@ function MudClientApp() {
     (data: MudData) => {
       DataManager.saveDataToStorage(data);
       const loadedProfiles = loadProfiles();
+      const importedDataSourceId = data.mud_settings.profileDataSourceId;
+      const importedDataSourceExists = loadedProfiles.some(
+        profile => profile.id === importedDataSourceId
+      );
+      const profileDataSourceId: string =
+        importedDataSourceExists && importedDataSourceId
+          ? importedDataSourceId
+          : loadedProfiles[0]?.id || '';
+
+      wsManager?.disconnect();
+      setWsManager(null);
+      setWebSocketManager(null);
+      setSelectedProfile(null);
+      setCanSend(false);
+      setStatus('Disconnected');
       setProfiles(loadedProfiles);
       setProfileDataMap(loadProfileDataMap(loadedProfiles));
-      setSettings(prev => ({ ...prev, ...data.mud_settings }));
+      setSettings(prev => ({
+        ...prev,
+        ...data.mud_settings,
+        profileDataSourceId,
+      }));
     },
-    [setSettings]
+    [setSettings, wsManager]
   );
 
   const handleProfileDataSourceChange = useCallback(

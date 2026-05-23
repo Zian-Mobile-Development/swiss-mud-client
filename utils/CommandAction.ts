@@ -10,7 +10,7 @@ let wsManager: WebSocketManager | null = null;
  * Set the WebSocketManager instance to use for sending commands
  * @param manager The WebSocketManager instance
  */
-export function setWebSocketManager(manager: WebSocketManager): void {
+export function setWebSocketManager(manager: WebSocketManager | null): void {
   wsManager = manager;
 }
 
@@ -37,4 +37,3 @@ export function alert(): void {
     console.warn('Failed to play alert sound:', error);
   });
 }
-

@@ -36,7 +36,7 @@ export function ensureProfileIds(profiles: Partial<MudProfile>[]): MudProfile[] 
     id: profile.id || createProfileId(),
     name: profile.name || '',
     address: profile.address || '',
-    port: profile.port || 23,
+    port: Number(profile.port) || 23,
     encoding: profile.encoding || 'utf8',
   }));
 }
