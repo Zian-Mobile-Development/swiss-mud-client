@@ -76,8 +76,21 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-.output {
+.outputSplit {
   flex: 1;
+  display: grid;
+  grid-template-rows: 1fr 0;
+  min-height: 0;
+  overflow: hidden;
+  background-color: #000000;
+}
+
+.outputSplitActive {
+  grid-template-rows: minmax(0, 3fr) minmax(96px, 1fr);
+}
+
+.output,
+.liveOutput {
   overflow: hidden;
   padding: 0;
   background-color: #000000;
@@ -88,13 +101,24 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.output :global(.xterm) {
+.liveOutput {
+  display: none;
+  border-top: 1px solid #333333;
+}
+
+.outputSplitActive .liveOutput {
+  display: block;
+}
+
+.output :global(.xterm),
+.liveOutput :global(.xterm) {
   height: 100%;
   padding: 8px;
   box-sizing: border-box;
 }
 
-.output :global(.xterm-viewport) {
+.output :global(.xterm-viewport),
+.liveOutput :global(.xterm-viewport) {
   background-color: #000000 !important;
 }
 

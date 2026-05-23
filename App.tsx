@@ -31,6 +31,7 @@ import { useAppContext } from './contexts/AppContext';
 import { ClientCommandManager } from './utils/ClientCommands';
 import { useLatestRef } from './hooks/useLatestRef';
 import { useMudOutputProcessing } from './hooks/useMudOutputProcessing';
+import { useAutoCopySelection } from './hooks/useAutoCopySelection';
 import { useViewportHeight } from './hooks/useViewportHeight';
 import { useXtermTerminal } from './hooks/useXtermTerminal';
 import {
@@ -110,11 +111,15 @@ function StatusBar({
 }
 
 function TerminalOutput({
+  isReviewingScrollback,
+  liveOutputRef,
   outputRef,
   screenReaderEnabled,
   srAnnouncement,
   onClick,
 }: {
+  isReviewingScrollback: boolean;
+  liveOutputRef: React.RefObject<HTMLDivElement | null>;
   outputRef: React.RefObject<HTMLDivElement | null>;
   screenReaderEnabled: boolean;
   srAnnouncement: string;
@@ -123,12 +128,24 @@ function TerminalOutput({
   return (
     <>
       <div
-        ref={outputRef}
-        className={styles.output}
-        onClick={onClick}
-        tabIndex={screenReaderEnabled ? -1 : 0}
-        aria-hidden={screenReaderEnabled ? true : undefined}
-      />
+        className={classNames(styles.outputSplit, {
+          [styles.outputSplitActive]: isReviewingScrollback,
+        })}
+      >
+        <div
+          ref={outputRef}
+          className={styles.output}
+          onClick={onClick}
+          tabIndex={screenReaderEnabled ? -1 : 0}
+          aria-hidden={screenReaderEnabled ? true : undefined}
+        />
+        <div
+          ref={liveOutputRef}
+          className={styles.liveOutput}
+          onClick={onClick}
+          aria-hidden='true'
+        />
+      </div>
 
       {screenReaderEnabled && (
         <div
@@ -215,6 +232,8 @@ function Toast({ message }: { message: string | null }) {
 }
 
 function MudClientApp() {
+  useAutoCopySelection();
+
   const inputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState('Disconnected');
   const [statusAnnouncement, setStatusAnnouncement] = useState('');
@@ -242,9 +261,15 @@ function MudClientApp() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const terminal = useXtermTerminal(settings);
+  const {
+    clear: terminalClear,
+    fit: terminalFit,
+    scrollToBottom: terminalScrollToBottom,
+    write: terminalWrite,
+  } = terminal;
   const viewportHeight = useViewportHeight({
     inputRef,
-    onLayoutChange: terminal.fit,
+    onLayoutChange: terminalFit,
   });
   const clientCommands = useRef(new ClientCommandManager());
   const [line, setLine] = useState<string>('');
@@ -503,14 +528,14 @@ function MudClientApp() {
     setStatus('Disconnected');
     setCanSend(false);
     resetStreamBuffers();
-    terminal.write(formatSystemMessageForTerminal('[INFO] Disconnected'));
+    terminalWrite(formatSystemMessageForTerminal('[INFO] Disconnected'));
     announceConnection('Disconnected');
     document.title = 'Swiss Mud Client';
   }, [
     selectedProfile,
     wsManager,
     resetStreamBuffers,
-    terminal,
+    terminalWrite,
     announceConnection,
   ]);
 
@@ -562,7 +587,7 @@ function MudClientApp() {
         {
           onCommandSend: (command: string, cmdSettings: Settings) => {
             if (cmdSettings.showCommandInOutput) {
-              terminal.write(formatUserCommandForTerminal(command));
+              terminalWrite(formatUserCommandForTerminal(command));
             }
             announceUserCommand(command);
             send(command);
@@ -579,7 +604,7 @@ function MudClientApp() {
     triggersRef,
     settingsRef,
     scriptsRef,
-    terminal,
+    terminalWrite,
     announceUserCommand,
     handleVariableSet,
   ]);
@@ -636,18 +661,18 @@ function MudClientApp() {
         const closeMessage = formatWebSocketClose(event);
         setStatus(`Disconnected (${event.code})`);
         setCanSend(false);
-        terminal.write(formatSystemMessageForTerminal(closeMessage));
+        terminalWrite(formatSystemMessageForTerminal(closeMessage));
         announceConnectionRef.current('Disconnected');
       },
       onError: () => {
         setStatus('Error occurred');
-        terminal.write(
+        terminalWrite(
           formatSystemMessageForTerminal('[ERROR] WebSocket error occurred')
         );
         announceConnectionRef.current('Connection error');
       },
       onMessage: (data: string) => {
-        terminal.write(htmlChunkToTerminalText(data));
+        terminalWrite(htmlChunkToTerminalText(data));
         ingestGameChunkRef.current(data);
       },
       onConnected: () => {
@@ -673,16 +698,16 @@ function MudClientApp() {
     resetStreamBuffersRef,
     ingestGameChunkRef,
     announceConnectionRef,
-    terminal,
+    terminalWrite,
   ]);
 
   useEffect(() => {
     clientCommands.current.setClearScreenHandler(() => {
-      terminal.clear();
+      terminalClear();
       clearAnnouncements();
       resetStreamBuffers();
     });
-  }, [clearAnnouncements, resetStreamBuffers, terminal]);
+  }, [clearAnnouncements, resetStreamBuffers, terminalClear]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!commandEngine || !wsManager) return;
@@ -719,7 +744,7 @@ function MudClientApp() {
         } else {
           inputRef.current!.value = '';
         }
-        terminal.scrollToBottom();
+        terminalScrollToBottom();
       }, 0);
     }
   };
@@ -777,6 +802,8 @@ function MudClientApp() {
 
       <main className={styles.container}>
         <TerminalOutput
+          isReviewingScrollback={terminal.isReviewingScrollback}
+          liveOutputRef={terminal.liveOutputRef}
           outputRef={terminal.outputRef}
           screenReaderEnabled={settings.screenReaderEnabled}
           srAnnouncement={srAnnouncement}
