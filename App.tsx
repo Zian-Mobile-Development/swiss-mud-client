@@ -22,6 +22,7 @@ import {
   Script,
   Settings,
   Trigger,
+  PatternContext,
   Variable,
 } from './types';
 import { createListItemId } from './utils/listFolders';
@@ -272,15 +273,21 @@ function MudClientApp() {
     onLayoutChange: terminalFit,
   });
   const clientCommands = useRef(new ClientCommandManager());
-  const [line, setLine] = useState<string>('');
+  const [triggerLine, setTriggerLine] = useState<{
+    text: string;
+    context?: PatternContext;
+  } | null>(null);
   const aliasesRef = useLatestRef(aliases);
   const variablesRef = useLatestRef(variables);
   const triggersRef = useLatestRef(triggers);
   const settingsRef = useLatestRef(settings);
   const scriptsRef = useLatestRef(scripts);
-  const handleTriggerLine = useCallback((textLine: string) => {
-    if (textLine) setLine(textLine);
-  }, []);
+  const handleTriggerLine = useCallback(
+    (textLine: string, context?: PatternContext) => {
+      if (textLine) setTriggerLine({ text: textLine, context });
+    },
+    []
+  );
   const {
     srAnnouncement,
     announceUserCommand,
@@ -659,10 +666,14 @@ function MudClientApp() {
   }, [settings, commandEngine]);
 
   useEffect(() => {
-    if (line && commandEngine && triggersEnabled) {
-      commandEngine.processPattern(line, 'trigger');
+    if (triggerLine && commandEngine && triggersEnabled) {
+      commandEngine.processPattern(
+        triggerLine.text,
+        'trigger',
+        triggerLine.context
+      );
     }
-  }, [line, triggersEnabled, commandEngine]);
+  }, [triggerLine, triggersEnabled, commandEngine]);
 
   useEffect(() => {
     if (!selectedProfile) return;

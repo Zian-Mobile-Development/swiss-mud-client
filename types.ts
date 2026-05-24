@@ -48,6 +48,17 @@ export interface Command {
   waitTime?: number;
 }
 
+export interface ColoredTextSegment {
+  text: string;
+  color: string;
+  backgroundColor: string;
+}
+
+export interface PatternContext {
+  rawHtml?: string;
+  coloredSegments?: ColoredTextSegment[];
+}
+
 export type ScreenReaderVerbosity = 'lines' | 'chunks';
 
 export interface Settings {

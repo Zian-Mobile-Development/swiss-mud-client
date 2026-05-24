@@ -102,13 +102,13 @@ export class WebSocketManager {
 
     ws.onmessage = event => {
       if (connectionId !== this.connectionId) return;
-      this.options.onMessage(event.data);
       if (
         typeof event.data === 'string' &&
         event.data.includes('[INFO] Connected to MUD server')
       ) {
         this.options.onConnected();
       }
+      this.options.onMessage(event.data);
     };
   }
 }

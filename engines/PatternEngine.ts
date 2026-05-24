@@ -1,18 +1,27 @@
 // engines/PatternEngine.ts
 // Engine for processing patterns.
 
-import type { Variable, Command, Pattern, Script } from '../types';
+import type { Variable, Command, Pattern, PatternContext, Script } from '../types';
 import { parseSpeedwalk } from '../utils/CommandUtils';
 import { alert } from '../utils/CommandAction';
+import {
+  colorOfText,
+  extractColoredSegments,
+  hasColoredText,
+} from '../utils/ColorTriggerUtils';
 
 export function processPatterns(
   input: string,
   patterns: Pattern[],
   variables: Variable[] = [],
   setVariable?: (name: string, value: string) => void,
-  scripts?: Script[]
+  scripts?: Script[],
+  context: PatternContext = {}
 ): Command[] | null {
   let allCommands: Command[] = [];
+  const rawHtml = context.rawHtml || '';
+  const coloredSegments =
+    context.coloredSegments || extractColoredSegments(rawHtml);
 
   for (const patternObj of patterns) {
     if (!patternObj.enabled) continue;
@@ -78,6 +87,11 @@ export function processPatterns(
             alert,
             setVariable: setVariable || (() => {}),
             sendEvent,
+            rawHtml,
+            coloredSegments,
+            hasColoredText: (text: string, color?: string) =>
+              hasColoredText(coloredSegments, text, color),
+            colorOfText: (text: string) => colorOfText(coloredSegments, text),
           };
 
           // Add variables to sandbox
@@ -112,6 +126,11 @@ export function processPatterns(
         alert,
         setVariable: setVariable || (() => {}),
         sendEvent,
+        rawHtml,
+        coloredSegments,
+        hasColoredText: (text: string, color?: string) =>
+          hasColoredText(coloredSegments, text, color),
+        colorOfText: (text: string) => colorOfText(coloredSegments, text),
       };
 
       variables.forEach(variable => {

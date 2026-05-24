@@ -18,9 +18,15 @@ function getSelectedDocumentText(): string {
   return window.getSelection()?.toString() ?? '';
 }
 
+function isInsideMonacoEditor(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest('.monaco-editor'));
+}
+
 export function useAutoCopySelection() {
   useEffect(() => {
     const copySelection = (event: Event) => {
+      if (isInsideMonacoEditor(event.target)) return;
+
       const inputText = getSelectedInputText(event.target);
       copySelectedText(inputText || getSelectedDocumentText());
     };

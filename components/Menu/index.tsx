@@ -202,9 +202,9 @@ export function Menu({
   };
 
   const handleProfileConnect = (profile: MudProfile) => {
-    onProfileConnect?.(profile);
     setActivePopup(null);
     lastMenuButtonRef.current?.focus();
+    onProfileConnect?.(profile);
   };
 
   return (

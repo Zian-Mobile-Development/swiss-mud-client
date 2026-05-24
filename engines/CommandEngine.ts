@@ -2,7 +2,14 @@
 // Engine for processing commands.
 
 import { processPatterns } from './PatternEngine';
-import type { Variable, Settings, Alias, Trigger, Script } from '../types';
+import type {
+  Variable,
+  Settings,
+  Alias,
+  Trigger,
+  Script,
+  PatternContext,
+} from '../types';
 
 export interface CommandEngineOptions {
   onCommandSend: (command: string, settings: Settings) => void;
@@ -53,14 +60,19 @@ export class CommandEngine {
     this.settings = settings;
   }
 
-  public async processPattern(input: string, type: 'alias' | 'trigger') {
+  public async processPattern(
+    input: string,
+    type: 'alias' | 'trigger',
+    context?: PatternContext
+  ) {
     const patterns = type === 'alias' ? this.aliases : this.triggers;
     const expanded = processPatterns(
       input,
       patterns,
       this.variables,
       this.options.onVariableSet,
-      this.scripts
+      this.scripts,
+      context
     );
 
     // Execute commands

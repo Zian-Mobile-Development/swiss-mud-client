@@ -152,4 +152,38 @@ describe('processPatterns', () => {
       expect(mockSetVariable).toHaveBeenCalledWith('weapon', 'sword');
     });
   });
+
+  describe('color-aware trigger context', () => {
+    it('exposes colored text helpers to trigger commands', () => {
+      const colorTrigger: Trigger = {
+        name: 'Color Match',
+        pattern: '^清少开始走位$',
+        command: `
+          if (hasColoredText('清少', '#ff0000')) {
+            send(\`zouwei \${colorOfText('清少')}\`)
+          }
+        `,
+        enabled: true,
+      };
+
+      const result = processPatterns(
+        '清少开始走位',
+        [colorTrigger],
+        [],
+        undefined,
+        undefined,
+        {
+          rawHtml:
+            '<span style="color: rgb(255, 0, 0)">清少</span>开始走位',
+        }
+      );
+
+      expect(result).toEqual([
+        {
+          type: 'command',
+          content: 'zouwei #ff0000',
+        },
+      ]);
+    });
+  });
 });

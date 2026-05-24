@@ -181,22 +181,23 @@ const AliasView: React.FC<AliasViewProps> = ({
             </label>
           </div>
           <div className={commonStyles.formGroup}>
-            <label>
-              Command
-              <div className={commonStyles.editorContainer}>
-                <Editor
-                  defaultLanguage='javascript'
-                  value={editBuffer.command}
-                  onChange={value => {
-                    setEditBuffer(current =>
-                      current ? { ...current, command: value || '' } : current
-                    );
-                  }}
-                  theme={editorOptionsWithLabel('Alias command editor').theme}
-                  options={editorOptionsWithLabel('Alias command editor')}
-                />
-              </div>
-            </label>
+            <label id='alias-command-label'>Command</label>
+            <div
+              className={commonStyles.editorContainer}
+              aria-labelledby='alias-command-label'
+            >
+              <Editor
+                defaultLanguage='javascript'
+                value={editBuffer.command}
+                onChange={value => {
+                  setEditBuffer(current =>
+                    current ? { ...current, command: value || '' } : current
+                  );
+                }}
+                theme={editorOptionsWithLabel('Alias command editor').theme}
+                options={editorOptionsWithLabel('Alias command editor')}
+              />
+            </div>
           </div>
           <div className={commonStyles.actions}>
             <button onClick={handleSave} disabled={!hasUnsaved}>

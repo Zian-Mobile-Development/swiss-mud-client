@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { PROMPT_FLUSH_MS, SR_CHUNK_DEBOUNCE_MS } from '../constants';
-import type { Settings } from '../types';
+import type { PatternContext, Settings } from '../types';
 import { LineBuffer } from '../utils/LineBuffer';
 import { normalizeLineForTrigger } from '../utils/TextUtils';
 import {
@@ -11,7 +11,7 @@ import {
 
 interface UseMudOutputProcessingOptions {
   settings: Settings;
-  onTriggerLine: (line: string) => void;
+  onTriggerLine: (line: string, context?: PatternContext) => void;
 }
 
 export function useMudOutputProcessing({
@@ -20,6 +20,7 @@ export function useMudOutputProcessing({
 }: UseMudOutputProcessingOptions) {
   const [srAnnouncement, setSrAnnouncement] = useState('');
   const triggerLineBufferRef = useRef(new LineBuffer());
+  const triggerHtmlLineBufferRef = useRef(new LineBuffer());
   const srLineBufferRef = useRef(new LineBuffer());
   const promptFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
@@ -46,6 +47,7 @@ export function useMudOutputProcessing({
 
   const resetStreamBuffers = useCallback(() => {
     triggerLineBufferRef.current.reset();
+    triggerHtmlLineBufferRef.current.reset();
     srLineBufferRef.current.reset();
     clearPromptFlushTimer();
     clearChunkDebounce();
@@ -131,12 +133,13 @@ export function useMudOutputProcessing({
           .append(plain)
           .map(normalizeLineForTrigger)
           .filter(Boolean);
+        const htmlLines = triggerHtmlLineBufferRef.current.append(data);
 
-        for (const textLine of lines) {
-          onTriggerLine(textLine);
+        for (let index = 0; index < lines.length; index += 1) {
+          onTriggerLine(lines[index], { rawHtml: htmlLines[index] || '' });
         }
       } else {
-        onTriggerLine(normalizeLineForTrigger(plain));
+        onTriggerLine(normalizeLineForTrigger(plain), { rawHtml: data });
       }
     },
     [
