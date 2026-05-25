@@ -18,6 +18,21 @@
   max-width: 200px;
 }
 
+.fontSizeControl {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) 64px auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.fontSizeControl input[type='range'] {
+  width: 100%;
+}
+
+.fontSizeControl input[type='number'] {
+  width: 64px;
+}
+
 /* Toggle Switch Styles */
 .toggleSwitch {
   position: relative;

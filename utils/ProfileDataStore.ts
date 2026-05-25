@@ -32,11 +32,16 @@ export function createProfileId(): string {
 }
 
 export function ensureProfileIds(profiles: Partial<MudProfile>[]): MudProfile[] {
+  const normalizePort = (port: MudProfile['port'] | undefined) => {
+    if (port === '') return '';
+    return Number(port) || 23;
+  };
+
   return profiles.map(profile => ({
     id: profile.id || createProfileId(),
     name: profile.name || '',
     address: profile.address || '',
-    port: Number(profile.port) || 23,
+    port: normalizePort(profile.port),
     encoding: profile.encoding || 'utf8',
   }));
 }

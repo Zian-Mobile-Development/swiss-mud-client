@@ -11,6 +11,12 @@ describe('OutputUtils', () => {
     ).toBe('你携带 \x1b[38;2;0;255;0m铜板\x1b[0m<5\r\n下一行');
   });
 
+  it('decodes apostrophe HTML entities', () => {
+    expect(htmlChunkToTerminalText('You can&apos;t wear that.')).toBe(
+      "You can't wear that."
+    );
+  });
+
   it('converts MXP anchor tags to terminal hyperlinks', () => {
     expect(
       htmlChunkToTerminalText(

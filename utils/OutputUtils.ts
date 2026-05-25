@@ -270,6 +270,7 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
     .replace(/&#39;/gi, "'")
     .replace(/&amp;/gi, '&')
     .replace(/&#(\d+);/g, (_, code: string) =>

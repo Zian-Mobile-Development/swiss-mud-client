@@ -27,7 +27,7 @@ export interface MudProfile {
   id: string;
   name: string;
   address: string;
-  port: number;
+  port: number | '';
   encoding: string;
 }
 

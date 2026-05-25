@@ -66,6 +66,16 @@ const FONT_FAMILIES = [
   },
 ];
 
+const MIN_OUTPUT_FONT_SIZE = 8;
+const MAX_OUTPUT_FONT_SIZE = 32;
+
+function clampOutputFontSize(value: number): number {
+  return Math.min(
+    MAX_OUTPUT_FONT_SIZE,
+    Math.max(MIN_OUTPUT_FONT_SIZE, value || 14)
+  );
+}
+
 function ToggleRow({
   label,
   checked,
@@ -101,6 +111,13 @@ export function SettingsView({
   onChange,
   onProfileDataSourceChange,
 }: SettingsViewProps) {
+  const handleFontSizeChange = (value: string) => {
+    onChange({
+      ...settings,
+      fontSize: clampOutputFontSize(parseInt(value, 10)),
+    });
+  };
+
   const handleToggle = (
     key:
       | 'highlightInputOnCommand'
@@ -164,22 +181,27 @@ export function SettingsView({
           </label>
         </div>
         <div className={styles.settingItem}>
-          <label>
-            Output font size
+          <label htmlFor='output-font-size'>Output font size</label>
+          <div className={styles.fontSizeControl}>
+            <input
+              id='output-font-size'
+              type='range'
+              min={MIN_OUTPUT_FONT_SIZE}
+              max={MAX_OUTPUT_FONT_SIZE}
+              value={settings.fontSize}
+              onChange={e => handleFontSizeChange(e.target.value)}
+              aria-valuetext={`${settings.fontSize} pixels`}
+            />
             <input
               type='number'
-              min='8'
-              max='32'
+              min={MIN_OUTPUT_FONT_SIZE}
+              max={MAX_OUTPUT_FONT_SIZE}
               value={settings.fontSize}
-              onChange={e =>
-                onChange({
-                  ...settings,
-                  fontSize: parseInt(e.target.value) || 14,
-                })
-              }
-              style={{ marginLeft: 8, width: '60px' }}
+              onChange={e => handleFontSizeChange(e.target.value)}
+              aria-label='Output font size in pixels'
             />
-          </label>
+            <span aria-hidden='true'>px</span>
+          </div>
         </div>
 
         <section

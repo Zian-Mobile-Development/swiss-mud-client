@@ -70,7 +70,7 @@ export default function ConnectView({
     const { name, value } = e.target;
     setEditBuffer({
       ...editBuffer,
-      [name]: name === 'port' ? parseInt(value) || 23 : value,
+      [name]: name === 'port' ? (value === '' ? '' : parseInt(value)) : value,
     });
   };
 
@@ -97,7 +97,7 @@ export default function ConnectView({
     if (
       !editBuffer.name.trim() ||
       !editBuffer.address.trim() ||
-      !editBuffer.port.toString().trim()
+      !String(editBuffer.port).trim()
     )
       return;
 
@@ -114,7 +114,7 @@ export default function ConnectView({
     if (
       !editBuffer.name.trim() ||
       !editBuffer.address.trim() ||
-      !editBuffer.port.toString().trim()
+      !String(editBuffer.port).trim()
     )
       return;
 
